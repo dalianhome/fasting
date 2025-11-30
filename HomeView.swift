@@ -220,6 +220,7 @@ struct HomeView: View {
                                     .frame(width: 18, height: 18)
                                 Text(theme.displayName)
                             }
+                            .tag(theme)
                         }
                     }
                 }
