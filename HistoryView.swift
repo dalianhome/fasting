@@ -54,7 +54,7 @@ struct HistoryView: View {
                                 .frame(maxWidth: .infinity, alignment: .center)
                                 .padding(.vertical, 12)
                         } else {
-                            ForEach(Array(store.history.enumerated()), id: \.element.id) { index, fast in
+                            ForEach(Array(store.history.enumerated()), id: \.offset) { index, fast in
                                 historyRow(fast, at: index)
                                     .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
                                     .listRowSeparator(.hidden)
@@ -168,11 +168,14 @@ struct HistoryView: View {
 
     private func delete(at offsets: IndexSet) {
         guard !offsets.isEmpty else { return }
-        let validOffsets = IndexSet(offsets.filter { store.history.indices.contains($0) })
-        guard !validOffsets.isEmpty else { return }
+        let ids = offsets.compactMap { index in
+            store.history.indices.contains(index) ? store.history[index].id : nil
+        }
+
+        guard !ids.isEmpty else { return }
 
         withAnimation {
-            store.deleteFast(at: validOffsets)
+            store.deleteFasts(withIDs: ids)
             markUpdated()
         }
     }

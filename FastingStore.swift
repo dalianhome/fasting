@@ -174,6 +174,15 @@ final class FastingStore: ObservableObject {
         saveToDefaults()
     }
 
+    func deleteFasts(withIDs ids: [UUID]) {
+        guard !ids.isEmpty else { return }
+        let idSet = Set(ids)
+        let originalCount = history.count
+        history.removeAll { idSet.contains($0.id) }
+        guard history.count != originalCount else { return }
+        saveToDefaults()
+    }
+
     private func setupDefaultPlans() {
         availablePlans = [
             FastingPlan(name: "12:12", fastingHours: 12, eatingHours: 12),
