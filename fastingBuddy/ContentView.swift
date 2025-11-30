@@ -1,24 +1,27 @@
-//
-//  ContentView.swift
-//  fastingBuddy
-//
-//  Created by chengxin on 30/11/25.
-//
-
 import SwiftUI
 
 struct ContentView: View {
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        TabView {
+            HomeView()
+                .tabItem {
+                    Label("Home", systemImage: "timer")
+                }
+
+            PlansView()
+                .tabItem {
+                    Label("Plans", systemImage: "target")
+                }
+
+            HistoryView()
+                .tabItem {
+                    Label("History", systemImage: "list.bullet")
+                }
         }
-        .padding()
     }
 }
 
 #Preview {
     ContentView()
+        .environmentObject(FastingStore())
 }

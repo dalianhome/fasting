@@ -1,17 +1,13 @@
-//
-//  fastingBuddyApp.swift
-//  fastingBuddy
-//
-//  Created by chengxin on 30/11/25.
-//
-
 import SwiftUI
 
 @main
-struct fastingBuddyApp: App {
+struct FastingBuddyApp: App {
+    @StateObject private var store = FastingStore()
+
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(store)
         }
     }
 }
