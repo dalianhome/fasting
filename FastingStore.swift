@@ -219,14 +219,14 @@ final class FastingStore: ObservableObject {
         saveToDefaults()
     }
 
-    func remainingTime() -> TimeInterval {
+    func remainingTime(asOf date: Date = Date()) -> TimeInterval {
         guard isFasting, let end = fastEndDate else { return 0 }
-        return max(end.timeIntervalSinceNow, 0)
+        return max(end.timeIntervalSince(date), 0)
     }
 
-    func fastProgress() -> Double {
+    func fastProgress(asOf date: Date = Date()) -> Double {
         guard isFasting, let start = fastStartDate, let plan = selectedPlan else { return 0 }
-        let elapsed = Date().timeIntervalSince(start)
+        let elapsed = date.timeIntervalSince(start)
         let target = TimeInterval(plan.fastingHours) * 3600
         return min(max(elapsed / target, 0), 1)
     }

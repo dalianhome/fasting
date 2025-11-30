@@ -4,6 +4,7 @@ struct HomeView: View {
     @EnvironmentObject var store: FastingStore
     @State private var timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     @State private var showSettings = false
+    @State private var now = Date()
 
     var body: some View {
         NavigationStack {
@@ -34,6 +35,7 @@ struct HomeView: View {
                 settingsSheet
             }
             .onReceive(timer) { _ in
+                now = Date()
                 if !store.isFasting {
                     timer.upstream.connect().cancel()
                 }
@@ -153,7 +155,7 @@ struct HomeView: View {
     }
 
     private var progressView: some View {
-        let progress = store.fastProgress()
+        let progress = store.fastProgress(asOf: now)
         return ZStack {
             Circle()
                 .stroke(Color.white.opacity(0.12), lineWidth: 12)
@@ -237,7 +239,7 @@ struct HomeView: View {
     }
 
     private func countdownString() -> String {
-        let remaining = store.remainingTime()
+        let remaining = store.remainingTime(asOf: now)
         if remaining <= 0 { return "Goal reached" }
         let hours = Int(remaining) / 3600
         let minutes = (Int(remaining) % 3600) / 60
