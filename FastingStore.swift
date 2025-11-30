@@ -156,7 +156,15 @@ final class FastingStore: ObservableObject {
     }
 
     func deleteFast(_ fast: CompletedFast) {
-        history.removeAll { $0.id == fast.id }
+        guard let index = history.firstIndex(where: { $0.id == fast.id }) else { return }
+        history.remove(at: index)
+        saveToDefaults()
+    }
+
+    func deleteFast(at offsets: IndexSet) {
+        let validOffsets = IndexSet(offsets.compactMap { history.indices.contains($0) ? $0 : nil })
+        guard !validOffsets.isEmpty else { return }
+        history.remove(atOffsets: validOffsets)
         saveToDefaults()
     }
 

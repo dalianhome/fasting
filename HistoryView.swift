@@ -47,7 +47,7 @@ struct HistoryView: View {
                                 historyRow(fast)
                                     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                         Button(role: .destructive) {
-                                            store.deleteFast(fast)
+                                            deleteFast(fast)
                                         } label: {
                                             Label("Delete", systemImage: "trash")
                                         }
@@ -143,24 +143,17 @@ struct HistoryView: View {
     }
 
     private func delete(at offsets: IndexSet) {
-        offsets.compactMap { index in
-            store.history[safe: index]
-        }
-        .forEach { fast in
-            store.deleteFast(fast)
-        }
+        store.deleteFast(at: offsets)
+    }
+
+    private func deleteFast(_ fast: CompletedFast) {
+        store.deleteFast(fast)
     }
 
     private func dateString(from date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         return formatter.string(from: date)
-    }
-}
-
-private extension Collection {
-    subscript(safe index: Index) -> Element? {
-        indices.contains(index) ? self[index] : nil
     }
 }
 
