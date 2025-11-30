@@ -2,6 +2,161 @@ import Foundation
 import Combine
 import SwiftUI
 
+enum AppTheme: String, CaseIterable, Identifiable, Codable {
+    case neon
+    case midnight
+    case sunrise
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .neon: return "Neon Nights"
+        case .midnight: return "Midnight Focus"
+        case .sunrise: return "Sunrise Glow"
+        }
+    }
+
+    var backgroundGradient: LinearGradient {
+        LinearGradient(
+            colors: backgroundColors,
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    var cardGradient: LinearGradient {
+        LinearGradient(
+            colors: cardColors,
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    var accentGlow: LinearGradient {
+        LinearGradient(
+            colors: glowColors,
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    var progressGradient: AngularGradient {
+        AngularGradient(
+            gradient: Gradient(colors: accentColors),
+            center: .center
+        )
+    }
+
+    var highlightAccent: Color {
+        switch self {
+        case .neon:
+            return Color(red: 0.98, green: 0.52, blue: 0.14)
+        case .midnight:
+            return Color(red: 0.2, green: 0.78, blue: 0.89)
+        case .sunrise:
+            return Color(red: 1.0, green: 0.7, blue: 0.4)
+        }
+    }
+
+    var actionTint: Color {
+        switch self {
+        case .neon:
+            return Color(red: 0.87, green: 0.41, blue: 0.95)
+        case .midnight:
+            return Color(red: 0.26, green: 0.63, blue: 0.98)
+        case .sunrise:
+            return Color(red: 1.0, green: 0.56, blue: 0.58)
+        }
+    }
+
+    var surface: Color { Color.white.opacity(0.06) }
+    var surfaceStroke: Color { Color.white.opacity(0.12) }
+
+    private var backgroundColors: [Color] {
+        switch self {
+        case .neon:
+            return [
+                Color(red: 0.04, green: 0.06, blue: 0.12),
+                Color(red: 0.11, green: 0.09, blue: 0.25),
+                Color(red: 0.18, green: 0.12, blue: 0.34)
+            ]
+        case .midnight:
+            return [
+                Color(red: 0.03, green: 0.05, blue: 0.11),
+                Color(red: 0.08, green: 0.1, blue: 0.19),
+                Color(red: 0.15, green: 0.17, blue: 0.28)
+            ]
+        case .sunrise:
+            return [
+                Color(red: 0.13, green: 0.06, blue: 0.16),
+                Color(red: 0.25, green: 0.1, blue: 0.22),
+                Color(red: 0.34, green: 0.15, blue: 0.27)
+            ]
+        }
+    }
+
+    private var cardColors: [Color] {
+        switch self {
+        case .neon:
+            return [
+                Color(red: 0.38, green: 0.17, blue: 0.66),
+                Color(red: 0.16, green: 0.72, blue: 0.86)
+            ]
+        case .midnight:
+            return [
+                Color(red: 0.16, green: 0.29, blue: 0.52),
+                Color(red: 0.1, green: 0.2, blue: 0.34)
+            ]
+        case .sunrise:
+            return [
+                Color(red: 0.93, green: 0.45, blue: 0.52),
+                Color(red: 0.99, green: 0.69, blue: 0.51)
+            ]
+        }
+    }
+
+    private var glowColors: [Color] {
+        switch self {
+        case .neon:
+            return [
+                Color(red: 0.6, green: 0.84, blue: 1.0).opacity(0.7),
+                Color(red: 0.93, green: 0.52, blue: 0.98).opacity(0.65)
+            ]
+        case .midnight:
+            return [
+                Color(red: 0.46, green: 0.78, blue: 0.97).opacity(0.7),
+                Color(red: 0.37, green: 0.53, blue: 1.0).opacity(0.6)
+            ]
+        case .sunrise:
+            return [
+                Color(red: 1.0, green: 0.76, blue: 0.62).opacity(0.7),
+                Color(red: 0.98, green: 0.52, blue: 0.7).opacity(0.65)
+            ]
+        }
+    }
+
+    private var accentColors: [Color] {
+        switch self {
+        case .neon:
+            return [
+                Color(red: 0.37, green: 0.93, blue: 1.0),
+                Color(red: 0.99, green: 0.52, blue: 0.11)
+            ]
+        case .midnight:
+            return [
+                Color(red: 0.46, green: 0.78, blue: 0.97),
+                Color(red: 0.32, green: 0.88, blue: 0.76)
+            ]
+        case .sunrise:
+            return [
+                Color(red: 1.0, green: 0.63, blue: 0.76),
+                Color(red: 1.0, green: 0.83, blue: 0.59)
+            ]
+        }
+    }
+}
+
 @MainActor
 final class FastingStore: ObservableObject {
     @Published var availablePlans: [FastingPlan] = []
@@ -14,6 +169,7 @@ final class FastingStore: ObservableObject {
     @Published var dailyReminderEnabled: Bool = false {
         didSet { handleDailyReminderChange() }
     }
+    @Published var theme: AppTheme = .neon
 
     private let defaultsKey = "FastingStoreData"
 
@@ -26,6 +182,7 @@ final class FastingStore: ObservableObject {
         var history: [CompletedFast]
         var autoStartAfterEating: Bool
         var dailyReminderEnabled: Bool
+        var theme: AppTheme?
     }
 
     init() {
@@ -87,6 +244,7 @@ final class FastingStore: ObservableObject {
             history = decoded.history
             autoStartAfterEating = decoded.autoStartAfterEating
             dailyReminderEnabled = decoded.dailyReminderEnabled
+            theme = decoded.theme ?? .neon
         } catch {
             print("Failed to load data: \(error)")
             setupDefaultPlans()
@@ -102,7 +260,8 @@ final class FastingStore: ObservableObject {
             fastEndDate: fastEndDate,
             history: history,
             autoStartAfterEating: autoStartAfterEating,
-            dailyReminderEnabled: dailyReminderEnabled
+            dailyReminderEnabled: dailyReminderEnabled,
+            theme: theme
         )
 
         do {
@@ -176,6 +335,20 @@ final class FastingStore: ObservableObject {
         )
         guard !validOffsets.isEmpty else { return }
         history.remove(atOffsets: validOffsets)
+        saveToDefaults()
+    }
+
+    func deleteFasts(withIDs ids: [UUID]) {
+        guard !ids.isEmpty else { return }
+        let originalCount = history.count
+        let idSet = Set(ids)
+        history.removeAll { idSet.contains($0.id) }
+        guard history.count != originalCount else { return }
+        saveToDefaults()
+    }
+
+    func setTheme(_ theme: AppTheme) {
+        self.theme = theme
         saveToDefaults()
     }
 

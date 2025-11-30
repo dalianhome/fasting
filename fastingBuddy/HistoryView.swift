@@ -4,38 +4,10 @@ import Combine
 struct HistoryView: View {
     @EnvironmentObject var store: FastingStore
 
-    private let backgroundGradient = LinearGradient(
-        colors: [
-            Color(red: 0.04, green: 0.06, blue: 0.12),
-            Color(red: 0.11, green: 0.09, blue: 0.25),
-            Color(red: 0.18, green: 0.12, blue: 0.34)
-        ],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
-
-    private let cardGradient = LinearGradient(
-        colors: [
-            Color(red: 0.38, green: 0.17, blue: 0.66),
-            Color(red: 0.16, green: 0.72, blue: 0.86)
-        ],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
-
-    private let accentGlow = LinearGradient(
-        colors: [
-            Color(red: 0.6, green: 0.84, blue: 1.0).opacity(0.7),
-            Color(red: 0.93, green: 0.52, blue: 0.98).opacity(0.65)
-        ],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
-
     var body: some View {
         NavigationStack {
             ZStack {
-                backgroundGradient
+                store.theme.backgroundGradient
                     .ignoresSafeArea()
 
                 List {
@@ -86,11 +58,11 @@ struct HistoryView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color.white.opacity(0.06))
+                .fill(store.theme.surface)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.15))
+                .strokeBorder(store.theme.surfaceStroke)
         )
         .shadow(color: Color.purple.opacity(0.28), radius: 18, x: 0, y: 12)
     }
@@ -108,7 +80,7 @@ struct HistoryView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(cardGradient.opacity(0.9))
+                .fill(store.theme.cardGradient.opacity(0.9))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -141,7 +113,7 @@ struct HistoryView: View {
             }
         }
         .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(
@@ -156,7 +128,7 @@ struct HistoryView: View {
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(accentGlow.opacity(0.18))
+                        .fill(store.theme.accentGlow.opacity(0.18))
                         .blur(radius: 14)
                 )
         )
@@ -185,7 +157,12 @@ struct HistoryView: View {
     }
 
     private func delete(at offsets: IndexSet) {
-        withAnimation { store.deleteFast(at: offsets) }
+        let ids = offsets.compactMap { offset -> UUID? in
+            guard store.history.indices.contains(offset) else { return nil }
+            return store.history[offset].id
+        }
+        guard !ids.isEmpty else { return }
+        withAnimation { store.deleteFasts(withIDs: ids) }
     }
 }
 

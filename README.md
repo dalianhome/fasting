@@ -4,6 +4,10 @@ Simple intermittent fasting companion built with SwiftUI.
 
 **Appmaker:** Cyberism App
 
+## Theme selection
+
+Pick between neon, midnight, and sunrise palettes from **Home ▸ Settings ▸ Appearance ▸ Theme** to match the app to your preferred look.
+
 ## Refreshing the app after code updates
 
 If changes are not showing up on device or simulator, try the following steps:

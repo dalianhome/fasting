@@ -8,15 +8,7 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                LinearGradient(
-                    colors: [
-                        Color(red: 0.04, green: 0.06, blue: 0.12),
-                        Color(red: 0.11, green: 0.09, blue: 0.25),
-                        Color(red: 0.18, green: 0.12, blue: 0.34)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+                store.theme.backgroundGradient
                     .ignoresSafeArea()
 
                 ScrollView {
@@ -52,13 +44,7 @@ struct HomeView: View {
     private var header: some View {
         ZStack(alignment: .leading) {
             RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [Color(red: 0.38, green: 0.17, blue: 0.66), Color(red: 0.16, green: 0.72, blue: 0.86)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+                .fill(store.theme.cardGradient)
                 .overlay(
                     LinearGradient(
                         colors: [Color.white.opacity(0.2), Color.clear],
@@ -114,14 +100,14 @@ struct HomeView: View {
                 .font(.system(size: 44))
                 .foregroundStyle(.white)
                 .padding(10)
-                .background(Circle().fill(Color(red: 0.98, green: 0.52, blue: 0.14)))
+                .background(Circle().fill(store.theme.highlightAccent))
         }
         .padding()
         .frame(maxWidth: .infinity)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color.white.opacity(0.06))
-                .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.white.opacity(0.12)))
+                .fill(store.theme.surface)
+                .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(store.theme.surfaceStroke))
                 .shadow(color: Color.cyan.opacity(0.35), radius: 16, x: 0, y: 12)
         )
     }
@@ -140,7 +126,7 @@ struct HomeView: View {
                 progressView
                 Text(countdownString())
                     .font(.system(size: 36, weight: .bold, design: .monospaced))
-                    .foregroundStyle(Color(red: 0.58, green: 0.89, blue: 1.0))
+                    .foregroundStyle(store.theme.actionTint)
             } else {
                 Text("Ready to fast")
                     .font(.headline)
@@ -149,7 +135,7 @@ struct HomeView: View {
                     Text("Target: \(plan.fastingHours) hours")
                         .font(.title2)
                         .fontWeight(.semibold)
-                        .foregroundStyle(Color(red: 0.58, green: 0.89, blue: 1.0))
+                        .foregroundStyle(store.theme.actionTint)
                 }
             }
         }
@@ -157,10 +143,10 @@ struct HomeView: View {
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(Color.white.opacity(0.06))
+                .fill(store.theme.surface)
                 .overlay(
                     RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .stroke(Color.white.opacity(0.15))
+                        .stroke(store.theme.surfaceStroke)
                 )
                 .shadow(color: Color.purple.opacity(0.4), radius: 20, x: 0, y: 14)
         )
@@ -175,10 +161,7 @@ struct HomeView: View {
             Circle()
                 .trim(from: 0, to: CGFloat(progress))
                 .stroke(
-                    AngularGradient(
-                        gradient: Gradient(colors: [Color(red: 0.37, green: 0.93, blue: 1.0), Color(red: 0.99, green: 0.52, blue: 0.11)]),
-                        center: .center
-                    ),
+                    store.theme.progressGradient,
                     style: StrokeStyle(lineWidth: 12, lineCap: .round)
                 )
                 .rotationEffect(.degrees(-90))
@@ -217,7 +200,7 @@ struct HomeView: View {
                         .padding()
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(Color(red: 0.87, green: 0.41, blue: 0.95))
+                .tint(store.theme.actionTint)
                 .disabled(store.selectedPlan == nil)
             }
         }
@@ -226,6 +209,19 @@ struct HomeView: View {
     private var settingsSheet: some View {
         NavigationStack {
             Form {
+                Section(header: Text("Appearance")) {
+                    Picker("Theme", selection: Binding(get: { store.theme }, set: { store.setTheme($0) })) {
+                        ForEach(AppTheme.allCases) { theme in
+                            HStack {
+                                Circle()
+                                    .fill(theme.cardGradient)
+                                    .frame(width: 18, height: 18)
+                                Text(theme.displayName)
+                            }
+                        }
+                    }
+                }
+
                 Section(header: Text("Preferences")) {
                     Toggle("Auto start after eating window", isOn: $store.autoStartAfterEating)
                     Toggle("Daily reminder at 8PM", isOn: $store.dailyReminderEnabled)
