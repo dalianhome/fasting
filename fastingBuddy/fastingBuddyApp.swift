@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct FastingBuddyApp: App {
+struct CyberismFastingApp: App {
     @StateObject private var store = FastingStore()
 
     var body: some Scene {

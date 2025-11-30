@@ -4,11 +4,12 @@ struct HomeView: View {
     @EnvironmentObject var store: FastingStore
     @State private var timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     @State private var showSettings = false
+    @State private var now = Date()
 
     var body: some View {
         NavigationStack {
             ZStack {
-                LinearGradient(gradient: Gradient(colors: [Color(red: 0.92, green: 0.97, blue: 1.0), Color.white]), startPoint: .top, endPoint: .bottom)
+                store.theme.backgroundGradient
                     .ignoresSafeArea()
 
                 ScrollView {
@@ -21,19 +22,20 @@ struct HomeView: View {
                     .padding()
                 }
             }
-            .navigationTitle("Fasting Buddy")
+            .navigationTitle("Cyberism Fasting App")
             .toolbar {
                 Button {
                     showSettings.toggle()
                 } label: {
                     Image(systemName: "gearshape")
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(.white.opacity(0.85))
                 }
             }
             .sheet(isPresented: $showSettings) {
                 settingsSheet
             }
             .onReceive(timer) { _ in
+                now = Date()
                 if !store.isFasting {
                     timer.upstream.connect().cancel()
                 }
@@ -44,22 +46,30 @@ struct HomeView: View {
     private var header: some View {
         ZStack(alignment: .leading) {
             RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(LinearGradient(gradient: Gradient(colors: [Color(red: 0.73, green: 0.89, blue: 1.0), Color(red: 0.61, green: 0.82, blue: 1.0)]), startPoint: .topLeading, endPoint: .bottomTrailing))
-                .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 8)
+                .fill(store.theme.cardGradient)
+                .overlay(
+                    LinearGradient(
+                        colors: [Color.white.opacity(0.2), Color.clear],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    .blendMode(.screen)
+                )
+                .shadow(color: Color.cyan.opacity(0.35), radius: 18, x: 0, y: 12)
 
             HStack(alignment: .center, spacing: 16) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Current Plan")
                         .font(.caption)
-                        .foregroundStyle(.primary.opacity(0.8))
+                        .foregroundStyle(.white.opacity(0.8))
                     Text(store.selectedPlan?.name ?? "None")
                         .font(.title)
                         .fontWeight(.bold)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(.white)
                     if let plan = store.selectedPlan {
                         Text("Target: \(plan.fastingHours)h fast · \(plan.eatingHours)h eat")
                             .font(.subheadline)
-                            .foregroundStyle(.primary.opacity(0.75))
+                            .foregroundStyle(.white.opacity(0.85))
                     }
                 }
                 Spacer()
@@ -67,7 +77,11 @@ struct HomeView: View {
                     .font(.system(size: 40))
                     .foregroundStyle(.white)
                     .padding(12)
-                    .background(Circle().fill(Color(red: 0.08, green: 0.45, blue: 0.82)))
+                    .background(
+                        Circle()
+                            .fill(Color.white.opacity(0.2))
+                            .overlay(Circle().stroke(Color.white.opacity(0.35), lineWidth: 1))
+                    )
             }
             .padding()
         }
@@ -78,20 +92,26 @@ struct HomeView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Keep the momentum ✨")
                     .font(.headline)
+                    .foregroundStyle(.white)
                 Text("\(store.currentStreak())-day streak • \(store.totalSuccessfulFasts()) goals met")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.white.opacity(0.7))
             }
             Spacer()
             Image(systemName: "figure.walk.circle.fill")
                 .font(.system(size: 44))
                 .foregroundStyle(.white)
                 .padding(10)
-                .background(Circle().fill(Color.orange))
+                .background(Circle().fill(store.theme.highlightAccent))
         }
         .padding()
         .frame(maxWidth: .infinity)
-        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color.white).shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 6))
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(store.theme.surface)
+                .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(store.theme.surfaceStroke))
+                .shadow(color: Color.cyan.opacity(0.35), radius: 16, x: 0, y: 12)
+        )
     }
 
     private var timerCard: some View {
@@ -99,53 +119,62 @@ struct HomeView: View {
             if store.isFasting {
                 Text("Fasting in progress")
                     .font(.headline)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(.white)
                 if let start = store.fastStartDate, let end = store.fastEndDate {
                     Text("Started \(timeString(from: start)) • Ends \(timeString(from: end))")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.white.opacity(0.75))
                 }
                 progressView
                 Text(countdownString())
                     .font(.system(size: 36, weight: .bold, design: .monospaced))
-                    .foregroundStyle(Color(red: 0.12, green: 0.3, blue: 0.55))
+                    .foregroundStyle(store.theme.actionTint)
             } else {
                 Text("Ready to fast")
                     .font(.headline)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(.white)
                 if let plan = store.selectedPlan {
                     Text("Target: \(plan.fastingHours) hours")
                         .font(.title2)
                         .fontWeight(.semibold)
-                        .foregroundStyle(Color(red: 0.12, green: 0.3, blue: 0.55))
+                        .foregroundStyle(store.theme.actionTint)
                 }
             }
         }
         .frame(maxWidth: .infinity)
         .padding()
-        .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 6)
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(store.theme.surface)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .stroke(store.theme.surfaceStroke)
+                )
+                .shadow(color: Color.purple.opacity(0.4), radius: 20, x: 0, y: 14)
+        )
     }
 
     private var progressView: some View {
-        let progress = store.fastProgress()
+        let progress = store.fastProgress(asOf: now)
         return ZStack {
             Circle()
-                .stroke(Color(red: 0.9, green: 0.93, blue: 0.96), lineWidth: 12)
+                .stroke(Color.white.opacity(0.12), lineWidth: 12)
                 .frame(width: 220, height: 220)
             Circle()
                 .trim(from: 0, to: CGFloat(progress))
-                .stroke(AngularGradient(gradient: Gradient(colors: [Color(red: 0.0, green: 0.7, blue: 0.86), Color(red: 0.99, green: 0.52, blue: 0.11)]), center: .center), style: StrokeStyle(lineWidth: 12, lineCap: .round))
+                .stroke(
+                    store.theme.progressGradient,
+                    style: StrokeStyle(lineWidth: 12, lineCap: .round)
+                )
                 .rotationEffect(.degrees(-90))
                 .frame(width: 220, height: 220)
                 .animation(.easeInOut(duration: 0.3), value: progress)
             VStack {
                 Text(String(format: "%.0f%%", progress * 100))
                     .font(.title)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(.white)
                 Text("complete")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.white.opacity(0.7))
             }
         }
         .padding(.vertical)
@@ -162,7 +191,7 @@ struct HomeView: View {
                         .padding()
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(.red)
+                .tint(.red.opacity(0.9))
             } else {
                 Button {
                     store.startFast()
@@ -173,7 +202,7 @@ struct HomeView: View {
                         .padding()
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(Color(red: 0.99, green: 0.52, blue: 0.11))
+                .tint(store.theme.actionTint)
                 .disabled(store.selectedPlan == nil)
             }
         }
@@ -182,6 +211,20 @@ struct HomeView: View {
     private var settingsSheet: some View {
         NavigationStack {
             Form {
+                Section(header: Text("Appearance")) {
+                    Picker("Theme", selection: Binding(get: { store.theme }, set: { store.setTheme($0) })) {
+                        ForEach(AppTheme.allCases) { theme in
+                            HStack {
+                                Circle()
+                                    .fill(theme.cardGradient)
+                                    .frame(width: 18, height: 18)
+                                Text(theme.displayName)
+                            }
+                            .tag(theme)
+                        }
+                    }
+                }
+
                 Section(header: Text("Preferences")) {
                     Toggle("Auto start after eating window", isOn: $store.autoStartAfterEating)
                     Toggle("Daily reminder at 8PM", isOn: $store.dailyReminderEnabled)
@@ -197,7 +240,7 @@ struct HomeView: View {
     }
 
     private func countdownString() -> String {
-        let remaining = store.remainingTime()
+        let remaining = store.remainingTime(asOf: now)
         if remaining <= 0 { return "Goal reached" }
         let hours = Int(remaining) / 3600
         let minutes = (Int(remaining) % 3600) / 60

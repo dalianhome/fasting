@@ -1,19 +1,45 @@
 import SwiftUI
+import Combine
 
 struct HistoryView: View {
     @EnvironmentObject var store: FastingStore
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
-                    statsCard
-                    historySection
+            ZStack {
+                store.theme.backgroundGradient
+                    .ignoresSafeArea()
+
+                List {
+                    Section {
+                        statsCard
+                            .listRowInsets(EdgeInsets())
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                    }
+
+                    Section("Past fasts") {
+                        if store.history.isEmpty {
+                            Text("No fasts recorded yet")
+                                .foregroundStyle(.white.opacity(0.75))
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .padding(.vertical, 12)
+                                .listRowBackground(Color.clear)
+                        } else {
+                            ForEach(Array(store.history.enumerated()), id: \.element.id) { index, fast in
+                                historyRow(fast, at: index)
+                                    .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
+                                    .listRowSeparator(.hidden)
+                                    .listRowBackground(Color.clear)
+                            }
+                            .onDelete(perform: delete)
+                        }
+                    }
                 }
-                .padding()
-                .background(Color(.systemGroupedBackground))
+                .scrollContentBackground(.hidden)
+                .listStyle(.insetGrouped)
+                .navigationTitle("History")
             }
-            .navigationTitle("History")
         }
     }
 
@@ -21,6 +47,7 @@ struct HistoryView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Your streak so far")
                 .font(.headline)
+                .foregroundStyle(.white.opacity(0.9))
             HStack(spacing: 16) {
                 statPill(title: "Total", value: "\(store.totalFasts())")
                 statPill(title: "Successful", value: "\(store.totalSuccessfulFasts())")
@@ -29,68 +56,104 @@ struct HistoryView: View {
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color.white).shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 6))
-    }
-
-    private var historySection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Past fasts")
-                .font(.headline)
-            if store.history.isEmpty {
-                Text("No fasts recorded yet")
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding()
-                    .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.white))
-            } else {
-                ForEach(store.history) { fast in
-                    historyRow(fast)
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(store.theme.surface)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .strokeBorder(store.theme.surfaceStroke)
+        )
+        .shadow(color: Color.purple.opacity(0.28), radius: 18, x: 0, y: 12)
     }
 
     private func statPill(title: String, value: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(.caption2)
+                .foregroundStyle(.white.opacity(0.8))
             Text(value)
                 .font(.headline)
-                .foregroundStyle(.primary)
+                .foregroundStyle(.white)
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color(red: 0.94, green: 0.97, blue: 1.0)))
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(store.theme.cardGradient.opacity(0.9))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.18))
+        )
+        .shadow(color: Color.cyan.opacity(0.32), radius: 12, x: 0, y: 9)
     }
 
-    private func historyRow(_ fast: CompletedFast) -> some View {
+    private func historyRow(_ fast: CompletedFast, at index: Int) -> some View {
         HStack(spacing: 12) {
             Circle()
-                .fill(fast.isSuccessful ? Color.green : Color.red.opacity(0.7))
+                .fill(fast.isSuccessful ? Color(hue: 0.34, saturation: 0.92, brightness: 0.86) : Color(red: 1.0, green: 0.25, blue: 0.45))
                 .frame(width: 12, height: 12)
             VStack(alignment: .leading) {
                 Text(dateString(from: fast.startDate))
                     .font(.headline)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(.white)
                 Text(fast.planName)
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.white.opacity(0.8))
             }
             Spacer()
             VStack(alignment: .trailing) {
                 Text(String(format: "%.1fh", fast.durationHours))
                     .font(.headline)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(.white)
                 Text(fast.isSuccessful ? "Reached goal" : "Stopped early")
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.white.opacity(0.8))
             }
         }
-        .padding()
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.white).shadow(color: Color.black.opacity(0.04), radius: 8, x: 0, y: 5))
+        .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.08),
+                            Color.white.opacity(0.02)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(store.theme.accentGlow.opacity(0.18))
+                        .blur(radius: 14)
+                )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.15))
+        )
+        .shadow(color: Color.black.opacity(0.32), radius: 16, x: 0, y: 10)
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            Button(role: .destructive) {
+                delete(atIndex: index)
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+    }
+
+    private func delete(at offsets: IndexSet) {
+        guard !offsets.isEmpty else { return }
+        withAnimation { store.deleteFast(at: offsets) }
+    }
+
+    private func delete(atIndex index: Int) {
+        guard store.history.indices.contains(index) else { return }
+        delete(at: IndexSet(integer: index))
     }
 
     private func dateString(from date: Date) -> String {
