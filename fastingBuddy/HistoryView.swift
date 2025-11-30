@@ -5,9 +5,9 @@ struct HistoryView: View {
 
     private let backgroundGradient = LinearGradient(
         colors: [
-            Color(red: 0.05, green: 0.08, blue: 0.14),
-            Color(red: 0.12, green: 0.09, blue: 0.26),
-            Color(red: 0.21, green: 0.09, blue: 0.38)
+            Color(red: 0.02, green: 0.04, blue: 0.07),
+            Color(red: 0.09, green: 0.07, blue: 0.16),
+            Color(red: 0.14, green: 0.08, blue: 0.26)
         ],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
@@ -24,8 +24,8 @@ struct HistoryView: View {
 
     private let accentGlow = LinearGradient(
         colors: [
-            Color(red: 0.95, green: 0.58, blue: 1.0).opacity(0.9),
-            Color(red: 0.37, green: 0.96, blue: 0.96).opacity(0.9)
+            Color(red: 0.95, green: 0.58, blue: 1.0).opacity(0.7),
+            Color(red: 0.37, green: 0.96, blue: 0.96).opacity(0.7)
         ],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
@@ -48,7 +48,7 @@ struct HistoryView: View {
                     Section("Past fasts") {
                         if store.history.isEmpty {
                             Text("No fasts recorded yet")
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(.white.opacity(0.75))
                                 .frame(maxWidth: .infinity, alignment: .center)
                                 .padding(.vertical, 12)
                                 .listRowBackground(Color.clear)
@@ -57,6 +57,7 @@ struct HistoryView: View {
                                 historyRow(fast)
                                     .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
                                     .listRowSeparator(.hidden)
+                                    .listRowBackground(Color.clear)
                             }
                             .onDelete(perform: delete)
                         }
@@ -138,18 +139,27 @@ struct HistoryView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(.white.opacity(0.08))
-                .background(
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.black.opacity(0.55),
+                            Color.black.opacity(0.38)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .overlay(
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(accentGlow.opacity(0.06))
+                        .fill(accentGlow.opacity(0.12))
                         .blur(radius: 18)
                 )
         )
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.14))
+                .strokeBorder(Color.white.opacity(0.2))
         )
-        .shadow(color: Color.cyan.opacity(0.4), radius: 14, x: 0, y: 10)
+        .shadow(color: Color.black.opacity(0.35), radius: 18, x: 0, y: 12)
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button(role: .destructive) {
                 delete(id: fast.id)
