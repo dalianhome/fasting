@@ -43,7 +43,7 @@ struct HistoryView: View {
                                 .frame(maxWidth: .infinity, alignment: .center)
                                 .padding(.vertical, 12)
                         } else {
-                            ForEach(Array(store.history.enumerated()), id: \.element.id) { index, fast in
+                            ForEach(Array(store.history.enumerated()), id: \.offset) { index, fast in
                                 historyRow(fast)
                                     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                         Button(role: .destructive) {
@@ -147,6 +147,7 @@ struct HistoryView: View {
     }
 
     private func deleteFast(at index: Int) {
+        guard store.history.indices.contains(index) else { return }
         store.deleteFast(at: IndexSet(integer: index))
     }
 
