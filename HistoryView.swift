@@ -30,8 +30,8 @@ struct HistoryView: View {
                                 .frame(maxWidth: .infinity, alignment: .center)
                                 .padding(.vertical, 12)
                         } else {
-                            ForEach(store.history) { fast in
-                                historyRow(fast)
+                            ForEach(Array(store.history.enumerated()), id: \.element.id) { index, fast in
+                                historyRow(fast, at: index)
                                     .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
                                     .listRowSeparator(.hidden)
                                     .listRowBackground(Color.clear)
@@ -99,7 +99,7 @@ struct HistoryView: View {
         .shadow(color: Color.cyan.opacity(0.32), radius: 14, x: 0, y: 10)
     }
 
-    private func historyRow(_ fast: CompletedFast) -> some View {
+    private func historyRow(_ fast: CompletedFast, at index: Int) -> some View {
         HStack(spacing: 12) {
             Circle()
                 .fill(fast.isSuccessful ? Color(hue: 0.34, saturation: 0.92, brightness: 0.86) : Color(red: 1.0, green: 0.25, blue: 0.45))
@@ -149,31 +149,24 @@ struct HistoryView: View {
         .shadow(color: Color.black.opacity(0.32), radius: 16, x: 0, y: 10)
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button(role: .destructive) {
-                delete(id: fast.id)
+                delete(atIndex: index)
             } label: {
                 Label("Delete", systemImage: "trash")
             }
         }
     }
 
-    private func delete(id: UUID) {
+    private func delete(at offsets: IndexSet) {
+        guard !offsets.isEmpty else { return }
         withAnimation {
-            store.deleteFast(id: id)
+            store.deleteFast(at: offsets)
             markUpdated()
         }
     }
 
-    private func delete(at offsets: IndexSet) {
-        guard !offsets.isEmpty else { return }
-        let ids = offsets.compactMap { offset -> UUID? in
-            guard store.history.indices.contains(offset) else { return nil }
-            return store.history[offset].id
-        }
-        guard !ids.isEmpty else { return }
-        withAnimation {
-            store.deleteFasts(withIDs: ids)
-            markUpdated()
-        }
+    private func delete(atIndex index: Int) {
+        guard store.history.indices.contains(index) else { return }
+        delete(at: IndexSet(integer: index))
     }
 
     private func dateString(from date: Date) -> String {
