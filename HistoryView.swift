@@ -54,17 +54,10 @@ struct HistoryView: View {
                                 .frame(maxWidth: .infinity, alignment: .center)
                                 .padding(.vertical, 12)
                         } else {
-                            ForEach(Array(store.history.enumerated()), id: \.element.id) { _, fast in
-                                historyRow(fast)
+                            ForEach(Array(store.history.enumerated()), id: \.element.id) { index, fast in
+                                historyRow(fast, at: index)
                                     .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
                                     .listRowSeparator(.hidden)
-                                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                        Button(role: .destructive) {
-                                            deleteFast(fast)
-                                        } label: {
-                                            Label("Delete", systemImage: "trash")
-                                        }
-                                    }
                             }
                             .onDelete(perform: delete)
                         }
@@ -125,7 +118,7 @@ struct HistoryView: View {
         .shadow(color: Color.cyan.opacity(0.35), radius: 12, x: 0, y: 8)
     }
 
-    private func historyRow(_ fast: CompletedFast) -> some View {
+    private func historyRow(_ fast: CompletedFast, at index: Int) -> some View {
         HStack(spacing: 12) {
             Circle()
                 .fill(fast.isSuccessful ? Color(hue: 0.34, saturation: 0.92, brightness: 0.86) : Color(red: 1.0, green: 0.25, blue: 0.45))
@@ -164,23 +157,22 @@ struct HistoryView: View {
                 .strokeBorder(Color.white.opacity(0.14))
         )
         .shadow(color: Color.cyan.opacity(0.4), radius: 14, x: 0, y: 10)
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            Button(role: .destructive) {
+                delete(at: IndexSet(integer: index))
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
     }
 
     private func delete(at offsets: IndexSet) {
         guard !offsets.isEmpty else { return }
-        let items = offsets.compactMap { index in
-            store.history.indices.contains(index) ? store.history[index] : nil
-        }
+        let validOffsets = IndexSet(offsets.filter { store.history.indices.contains($0) })
+        guard !validOffsets.isEmpty else { return }
 
         withAnimation {
-            items.forEach { store.deleteFast($0) }
-            markUpdated()
-        }
-    }
-
-    private func deleteFast(_ fast: CompletedFast) {
-        withAnimation {
-            store.deleteFast(fast)
+            store.deleteFast(at: validOffsets)
             markUpdated()
         }
     }
