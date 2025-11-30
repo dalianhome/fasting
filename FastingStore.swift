@@ -13,6 +13,7 @@ final class FastingStore: ObservableObject {
     @Published var dailyReminderEnabled: Bool = false {
         didSet { handleDailyReminderChange() }
     }
+    @Published var lastSyncedAt: Date?
 
     private let defaultsKey = "FastingStoreData"
 
@@ -25,6 +26,7 @@ final class FastingStore: ObservableObject {
         var history: [CompletedFast]
         var autoStartAfterEating: Bool
         var dailyReminderEnabled: Bool
+        var lastSyncedAt: Date?
     }
 
     init() {
@@ -86,6 +88,7 @@ final class FastingStore: ObservableObject {
             history = decoded.history
             autoStartAfterEating = decoded.autoStartAfterEating
             dailyReminderEnabled = decoded.dailyReminderEnabled
+            lastSyncedAt = decoded.lastSyncedAt
         } catch {
             print("Failed to load data: \(error)")
             setupDefaultPlans()
@@ -93,18 +96,20 @@ final class FastingStore: ObservableObject {
     }
 
     func saveToDefaults() {
-        let data = PersistedData(
-            availablePlans: availablePlans,
-            selectedPlan: selectedPlan,
-            isFasting: isFasting,
-            fastStartDate: fastStartDate,
-            fastEndDate: fastEndDate,
-            history: history,
-            autoStartAfterEating: autoStartAfterEating,
-            dailyReminderEnabled: dailyReminderEnabled
-        )
-
         do {
+            let syncTime = Date()
+            lastSyncedAt = syncTime
+            let data = PersistedData(
+                availablePlans: availablePlans,
+                selectedPlan: selectedPlan,
+                isFasting: isFasting,
+                fastStartDate: fastStartDate,
+                fastEndDate: fastEndDate,
+                history: history,
+                autoStartAfterEating: autoStartAfterEating,
+                dailyReminderEnabled: dailyReminderEnabled,
+                lastSyncedAt: syncTime
+            )
             let encoded = try JSONEncoder().encode(data)
             UserDefaults.standard.set(encoded, forKey: defaultsKey)
         } catch {
@@ -190,6 +195,7 @@ final class FastingStore: ObservableObject {
             FastingPlan(name: "16:8", fastingHours: 16, eatingHours: 8)
         ]
         selectedPlan = availablePlans.first
+        lastSyncedAt = Date()
     }
 
     private func handleDailyReminderChange() {
