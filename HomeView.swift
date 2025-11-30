@@ -8,7 +8,15 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                LinearGradient(gradient: Gradient(colors: [Color(red: 0.92, green: 0.97, blue: 1.0), Color.white]), startPoint: .top, endPoint: .bottom)
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.04, green: 0.06, blue: 0.12),
+                        Color(red: 0.11, green: 0.09, blue: 0.25),
+                        Color(red: 0.18, green: 0.12, blue: 0.34)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
                     .ignoresSafeArea()
 
                 ScrollView {
@@ -27,7 +35,7 @@ struct HomeView: View {
                     showSettings.toggle()
                 } label: {
                     Image(systemName: "gearshape")
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(.white.opacity(0.85))
                 }
             }
             .sheet(isPresented: $showSettings) {
@@ -44,22 +52,36 @@ struct HomeView: View {
     private var header: some View {
         ZStack(alignment: .leading) {
             RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(LinearGradient(gradient: Gradient(colors: [Color(red: 0.73, green: 0.89, blue: 1.0), Color(red: 0.61, green: 0.82, blue: 1.0)]), startPoint: .topLeading, endPoint: .bottomTrailing))
-                .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 8)
+                .fill(
+                    LinearGradient(
+                        colors: [Color(red: 0.38, green: 0.17, blue: 0.66), Color(red: 0.16, green: 0.72, blue: 0.86)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .overlay(
+                    LinearGradient(
+                        colors: [Color.white.opacity(0.2), Color.clear],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    .blendMode(.screen)
+                )
+                .shadow(color: Color.cyan.opacity(0.35), radius: 18, x: 0, y: 12)
 
             HStack(alignment: .center, spacing: 16) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Current Plan")
                         .font(.caption)
-                        .foregroundStyle(.primary.opacity(0.8))
+                        .foregroundStyle(.white.opacity(0.8))
                     Text(store.selectedPlan?.name ?? "None")
                         .font(.title)
                         .fontWeight(.bold)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(.white)
                     if let plan = store.selectedPlan {
                         Text("Target: \(plan.fastingHours)h fast · \(plan.eatingHours)h eat")
                             .font(.subheadline)
-                            .foregroundStyle(.primary.opacity(0.75))
+                            .foregroundStyle(.white.opacity(0.85))
                     }
                 }
                 Spacer()
@@ -67,7 +89,11 @@ struct HomeView: View {
                     .font(.system(size: 40))
                     .foregroundStyle(.white)
                     .padding(12)
-                    .background(Circle().fill(Color(red: 0.08, green: 0.45, blue: 0.82)))
+                    .background(
+                        Circle()
+                            .fill(Color.white.opacity(0.2))
+                            .overlay(Circle().stroke(Color.white.opacity(0.35), lineWidth: 1))
+                    )
             }
             .padding()
         }
@@ -78,20 +104,26 @@ struct HomeView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Keep the momentum ✨")
                     .font(.headline)
+                    .foregroundStyle(.white)
                 Text("\(store.currentStreak())-day streak • \(store.totalSuccessfulFasts()) goals met")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.white.opacity(0.7))
             }
             Spacer()
             Image(systemName: "figure.walk.circle.fill")
                 .font(.system(size: 44))
                 .foregroundStyle(.white)
                 .padding(10)
-                .background(Circle().fill(Color.orange))
+                .background(Circle().fill(Color(red: 0.98, green: 0.52, blue: 0.14)))
         }
         .padding()
         .frame(maxWidth: .infinity)
-        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color.white).shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 6))
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color.white.opacity(0.06))
+                .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.white.opacity(0.12)))
+                .shadow(color: Color.cyan.opacity(0.35), radius: 16, x: 0, y: 12)
+        )
     }
 
     private var timerCard: some View {
@@ -99,53 +131,65 @@ struct HomeView: View {
             if store.isFasting {
                 Text("Fasting in progress")
                     .font(.headline)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(.white)
                 if let start = store.fastStartDate, let end = store.fastEndDate {
                     Text("Started \(timeString(from: start)) • Ends \(timeString(from: end))")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.white.opacity(0.75))
                 }
                 progressView
                 Text(countdownString())
                     .font(.system(size: 36, weight: .bold, design: .monospaced))
-                    .foregroundStyle(Color(red: 0.12, green: 0.3, blue: 0.55))
+                    .foregroundStyle(Color(red: 0.58, green: 0.89, blue: 1.0))
             } else {
                 Text("Ready to fast")
                     .font(.headline)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(.white)
                 if let plan = store.selectedPlan {
                     Text("Target: \(plan.fastingHours) hours")
                         .font(.title2)
                         .fontWeight(.semibold)
-                        .foregroundStyle(Color(red: 0.12, green: 0.3, blue: 0.55))
+                        .foregroundStyle(Color(red: 0.58, green: 0.89, blue: 1.0))
                 }
             }
         }
         .frame(maxWidth: .infinity)
         .padding()
-        .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 6)
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(Color.white.opacity(0.06))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .stroke(Color.white.opacity(0.15))
+                )
+                .shadow(color: Color.purple.opacity(0.4), radius: 20, x: 0, y: 14)
+        )
     }
 
     private var progressView: some View {
         let progress = store.fastProgress()
         return ZStack {
             Circle()
-                .stroke(Color(red: 0.9, green: 0.93, blue: 0.96), lineWidth: 12)
+                .stroke(Color.white.opacity(0.12), lineWidth: 12)
                 .frame(width: 220, height: 220)
             Circle()
                 .trim(from: 0, to: CGFloat(progress))
-                .stroke(AngularGradient(gradient: Gradient(colors: [Color(red: 0.0, green: 0.7, blue: 0.86), Color(red: 0.99, green: 0.52, blue: 0.11)]), center: .center), style: StrokeStyle(lineWidth: 12, lineCap: .round))
+                .stroke(
+                    AngularGradient(
+                        gradient: Gradient(colors: [Color(red: 0.37, green: 0.93, blue: 1.0), Color(red: 0.99, green: 0.52, blue: 0.11)]),
+                        center: .center
+                    ),
+                    style: StrokeStyle(lineWidth: 12, lineCap: .round)
+                )
                 .rotationEffect(.degrees(-90))
                 .frame(width: 220, height: 220)
                 .animation(.easeInOut(duration: 0.3), value: progress)
             VStack {
                 Text(String(format: "%.0f%%", progress * 100))
                     .font(.title)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(.white)
                 Text("complete")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.white.opacity(0.7))
             }
         }
         .padding(.vertical)
@@ -162,7 +206,7 @@ struct HomeView: View {
                         .padding()
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(.red)
+                .tint(.red.opacity(0.9))
             } else {
                 Button {
                     store.startFast()
@@ -173,7 +217,7 @@ struct HomeView: View {
                         .padding()
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(Color(red: 0.99, green: 0.52, blue: 0.11))
+                .tint(Color(red: 0.87, green: 0.41, blue: 0.95))
                 .disabled(store.selectedPlan == nil)
             }
         }
