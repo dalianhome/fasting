@@ -3,11 +3,14 @@ import SwiftUI
 struct HistoryView: View {
     @EnvironmentObject var store: FastingStore
 
+    @State private var lastUpdated = Date()
+
     private let backgroundGradient = LinearGradient(
         colors: [
-            Color(red: 0.10, green: 0.12, blue: 0.24),
-            Color(red: 0.08, green: 0.15, blue: 0.33),
-            Color(red: 0.04, green: 0.18, blue: 0.38)
+            Color(red: 0.06, green: 0.09, blue: 0.18),
+            Color(red: 0.08, green: 0.09, blue: 0.29),
+            Color(red: 0.10, green: 0.16, blue: 0.42),
+            Color(red: 0.06, green: 0.22, blue: 0.46)
         ],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
@@ -15,8 +18,17 @@ struct HistoryView: View {
 
     private let cardGradient = LinearGradient(
         colors: [
-            Color(red: 0.36, green: 0.62, blue: 0.99),
-            Color(red: 0.47, green: 0.82, blue: 1.0)
+            Color(red: 0.24, green: 0.75, blue: 0.96),
+            Color(red: 0.47, green: 0.34, blue: 1.0)
+        ],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+
+    private let accentGlow = LinearGradient(
+        colors: [
+            Color(red: 0.43, green: 1.0, blue: 0.87).opacity(0.85),
+            Color(red: 0.39, green: 0.74, blue: 1.0).opacity(0.85)
         ],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
@@ -43,7 +55,7 @@ struct HistoryView: View {
                                 .frame(maxWidth: .infinity, alignment: .center)
                                 .padding(.vertical, 12)
                         } else {
-                            ForEach(store.history) { fast in
+                            ForEach(Array(store.history.enumerated()), id: \.element.id) { _, fast in
                                 historyRow(fast)
                                     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                         Button(role: .destructive) {
@@ -60,7 +72,13 @@ struct HistoryView: View {
                 .listStyle(.insetGrouped)
                 .scrollContentBackground(.hidden)
                 .navigationTitle("History")
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        timestampBadge
+                    }
+                }
             }
+            .onAppear { markUpdated() }
         }
     }
 
@@ -83,9 +101,9 @@ struct HistoryView: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.15))
+                .strokeBorder(Color.white.opacity(0.25))
         )
-        .shadow(color: Color.black.opacity(0.35), radius: 20, x: 0, y: 12)
+        .shadow(color: Color.blue.opacity(0.35), radius: 20, x: 0, y: 12)
     }
 
     private func statPill(title: String, value: String) -> some View {
@@ -101,9 +119,9 @@ struct HistoryView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(cardGradient.opacity(0.85))
+                .fill(cardGradient.opacity(0.95))
         )
-        .shadow(color: Color.black.opacity(0.25), radius: 10, x: 0, y: 6)
+        .shadow(color: Color.cyan.opacity(0.35), radius: 12, x: 0, y: 8)
     }
 
     private func historyRow(_ fast: CompletedFast) -> some View {
@@ -134,33 +152,73 @@ struct HistoryView: View {
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(.white.opacity(0.08))
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(accentGlow.opacity(0.06))
+                        .blur(radius: 16)
+                )
         )
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .strokeBorder(Color.white.opacity(0.08))
         )
-        .shadow(color: Color.black.opacity(0.3), radius: 12, x: 0, y: 8)
+        .shadow(color: Color.cyan.opacity(0.4), radius: 14, x: 0, y: 10)
     }
 
     private func delete(at offsets: IndexSet) {
-        let fasts = offsets.compactMap { offset in
-            guard store.history.indices.contains(offset) else { return nil }
-            return store.history[offset]
+        let ids = offsets.compactMap { offset in
+            store.history.indices.contains(offset) ? store.history[offset].id : nil
         }
 
-        fasts.forEach { fast in
-            store.deleteFast(fast)
+        guard !ids.isEmpty else { return }
+
+        withAnimation {
+            ids.forEach { store.deleteFast(id: $0) }
+            markUpdated()
         }
     }
 
     private func deleteFast(_ fast: CompletedFast) {
-        store.deleteFast(fast)
+        withAnimation {
+            store.deleteFast(fast)
+            markUpdated()
+        }
     }
 
     private func dateString(from date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         return formatter.string(from: date)
+    }
+
+    private var timestampBadge: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "clock.arrow.circlepath")
+            Text(timestampString(from: lastUpdated))
+        }
+        .font(.caption2.weight(.semibold))
+        .foregroundStyle(.white.opacity(0.9))
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(
+            Capsule(style: .continuous)
+                .fill(.ultraThickMaterial.opacity(0.35))
+        )
+        .overlay(
+            Capsule(style: .continuous)
+                .stroke(Color.white.opacity(0.25))
+        )
+    }
+
+    private func timestampString(from date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
+
+    private func markUpdated() {
+        lastUpdated = Date()
     }
 }
 

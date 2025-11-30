@@ -161,6 +161,12 @@ final class FastingStore: ObservableObject {
         saveToDefaults()
     }
 
+    func deleteFast(id: UUID) {
+        guard let index = history.firstIndex(where: { $0.id == id }) else { return }
+        history.remove(at: index)
+        saveToDefaults()
+    }
+
     func deleteFast(at offsets: IndexSet) {
         let validOffsets = IndexSet(offsets.compactMap { history.indices.contains($0) ? $0 : nil })
         guard !validOffsets.isEmpty else { return }
