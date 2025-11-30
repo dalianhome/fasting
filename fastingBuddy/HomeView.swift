@@ -22,7 +22,7 @@ struct HomeView: View {
                     .padding()
                 }
             }
-            .navigationTitle("Fasting Buddy")
+            .navigationTitle("Cyberism Fasting App")
             .toolbar {
                 Button {
                     showSettings.toggle()

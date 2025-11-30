@@ -155,6 +155,25 @@ final class FastingStore: ObservableObject {
         history.count
     }
 
+    func deleteFast(_ fast: CompletedFast) {
+        guard let index = history.firstIndex(where: { $0.id == fast.id }) else { return }
+        history.remove(at: index)
+        saveToDefaults()
+    }
+
+    func deleteFast(id: UUID) {
+        guard let index = history.firstIndex(where: { $0.id == id }) else { return }
+        history.remove(at: index)
+        saveToDefaults()
+    }
+
+    func deleteFast(at offsets: IndexSet) {
+        let validOffsets = IndexSet(offsets.compactMap { history.indices.contains($0) ? $0 : nil })
+        guard !validOffsets.isEmpty else { return }
+        history.remove(atOffsets: validOffsets)
+        saveToDefaults()
+    }
+
     private func setupDefaultPlans() {
         availablePlans = [
             FastingPlan(name: "12:12", fastingHours: 12, eatingHours: 12),

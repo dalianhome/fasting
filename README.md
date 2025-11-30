@@ -1,4 +1,4 @@
-# Fasting Buddy
+# Cyberism Fasting App
 
 Simple intermittent fasting companion built with SwiftUI.
 
