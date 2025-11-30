@@ -5,9 +5,9 @@ struct HistoryView: View {
 
     private let backgroundGradient = LinearGradient(
         colors: [
-            Color(red: 0.02, green: 0.04, blue: 0.07),
-            Color(red: 0.09, green: 0.07, blue: 0.16),
-            Color(red: 0.14, green: 0.08, blue: 0.26)
+            Color(red: 0.04, green: 0.06, blue: 0.12),
+            Color(red: 0.11, green: 0.09, blue: 0.25),
+            Color(red: 0.18, green: 0.12, blue: 0.34)
         ],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
@@ -15,8 +15,8 @@ struct HistoryView: View {
 
     private let cardGradient = LinearGradient(
         colors: [
-            Color(red: 0.63, green: 0.21, blue: 0.91),
-            Color(red: 0.21, green: 0.78, blue: 0.93)
+            Color(red: 0.38, green: 0.17, blue: 0.66),
+            Color(red: 0.16, green: 0.72, blue: 0.86)
         ],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
@@ -24,8 +24,8 @@ struct HistoryView: View {
 
     private let accentGlow = LinearGradient(
         colors: [
-            Color(red: 0.95, green: 0.58, blue: 1.0).opacity(0.7),
-            Color(red: 0.37, green: 0.96, blue: 0.96).opacity(0.7)
+            Color(red: 0.6, green: 0.84, blue: 1.0).opacity(0.7),
+            Color(red: 0.93, green: 0.52, blue: 0.98).opacity(0.65)
         ],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
@@ -85,20 +85,20 @@ struct HistoryView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(.ultraThinMaterial.opacity(0.6))
+                .fill(Color.white.opacity(0.06))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.25))
+                .strokeBorder(Color.white.opacity(0.15))
         )
-        .shadow(color: Color.blue.opacity(0.35), radius: 20, x: 0, y: 12)
+        .shadow(color: Color.purple.opacity(0.28), radius: 18, x: 0, y: 12)
     }
 
     private func statPill(title: String, value: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
-                .font(.caption)
-                .foregroundStyle(.white.opacity(0.75))
+                .font(.caption2)
+                .foregroundStyle(.white.opacity(0.8))
             Text(value)
                 .font(.headline)
                 .foregroundStyle(.white)
@@ -107,9 +107,13 @@ struct HistoryView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(cardGradient)
+                .fill(cardGradient.opacity(0.9))
         )
-        .shadow(color: Color.cyan.opacity(0.35), radius: 10, x: 0, y: 8)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.18))
+        )
+        .shadow(color: Color.cyan.opacity(0.32), radius: 12, x: 0, y: 9)
     }
 
     private func historyRow(_ fast: CompletedFast) -> some View {
@@ -142,8 +146,8 @@ struct HistoryView: View {
                 .fill(
                     LinearGradient(
                         colors: [
-                            Color.black.opacity(0.55),
-                            Color.black.opacity(0.38)
+                            Color.white.opacity(0.08),
+                            Color.white.opacity(0.02)
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
@@ -151,15 +155,15 @@ struct HistoryView: View {
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(accentGlow.opacity(0.12))
-                        .blur(radius: 18)
+                        .fill(accentGlow.opacity(0.18))
+                        .blur(radius: 14)
                 )
         )
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.2))
+                .strokeBorder(Color.white.opacity(0.15))
         )
-        .shadow(color: Color.black.opacity(0.35), radius: 18, x: 0, y: 12)
+        .shadow(color: Color.black.opacity(0.32), radius: 16, x: 0, y: 10)
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button(role: .destructive) {
                 delete(id: fast.id)
