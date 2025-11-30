@@ -7,10 +7,9 @@ struct HistoryView: View {
 
     private let backgroundGradient = LinearGradient(
         colors: [
-            Color(red: 0.06, green: 0.09, blue: 0.18),
-            Color(red: 0.08, green: 0.09, blue: 0.29),
-            Color(red: 0.10, green: 0.16, blue: 0.42),
-            Color(red: 0.06, green: 0.22, blue: 0.46)
+            Color(red: 0.05, green: 0.08, blue: 0.14),
+            Color(red: 0.14, green: 0.09, blue: 0.29),
+            Color(red: 0.24, green: 0.09, blue: 0.41)
         ],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
@@ -18,8 +17,8 @@ struct HistoryView: View {
 
     private let cardGradient = LinearGradient(
         colors: [
-            Color(red: 0.24, green: 0.75, blue: 0.96),
-            Color(red: 0.47, green: 0.34, blue: 1.0)
+            Color(red: 0.63, green: 0.21, blue: 0.91),
+            Color(red: 0.21, green: 0.78, blue: 0.93)
         ],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
@@ -27,8 +26,8 @@ struct HistoryView: View {
 
     private let accentGlow = LinearGradient(
         colors: [
-            Color(red: 0.43, green: 1.0, blue: 0.87).opacity(0.85),
-            Color(red: 0.39, green: 0.74, blue: 1.0).opacity(0.85)
+            Color(red: 0.95, green: 0.58, blue: 1.0).opacity(0.85),
+            Color(red: 0.37, green: 0.96, blue: 0.96).opacity(0.85)
         ],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
@@ -55,8 +54,10 @@ struct HistoryView: View {
                                 .frame(maxWidth: .infinity, alignment: .center)
                                 .padding(.vertical, 12)
                         } else {
-                            ForEach(Array(store.history.enumerated()), id: \.element.id) { _, fast in
+                            ForEach(store.history) { fast in
                                 historyRow(fast)
+                                    .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
+                                    .listRowSeparator(.hidden)
                                     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                         Button(role: .destructive) {
                                             deleteFast(fast)
@@ -127,7 +128,7 @@ struct HistoryView: View {
     private func historyRow(_ fast: CompletedFast) -> some View {
         HStack(spacing: 12) {
             Circle()
-                .fill(fast.isSuccessful ? Color.green.opacity(0.9) : Color.red.opacity(0.8))
+                .fill(fast.isSuccessful ? Color(hue: 0.34, saturation: 0.92, brightness: 0.86) : Color(red: 1.0, green: 0.25, blue: 0.45))
                 .frame(width: 12, height: 12)
             VStack(alignment: .leading) {
                 Text(dateString(from: fast.startDate))
@@ -147,7 +148,7 @@ struct HistoryView: View {
                     .foregroundStyle(.white.opacity(0.8))
             }
         }
-        .padding()
+        .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -155,25 +156,20 @@ struct HistoryView: View {
                 .background(
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
                         .fill(accentGlow.opacity(0.06))
-                        .blur(radius: 16)
+                        .blur(radius: 18)
                 )
         )
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.08))
+                .strokeBorder(Color.white.opacity(0.14))
         )
         .shadow(color: Color.cyan.opacity(0.4), radius: 14, x: 0, y: 10)
     }
 
     private func delete(at offsets: IndexSet) {
-        let ids = offsets.compactMap { offset in
-            store.history.indices.contains(offset) ? store.history[offset].id : nil
-        }
-
-        guard !ids.isEmpty else { return }
-
+        guard !offsets.isEmpty else { return }
         withAnimation {
-            ids.forEach { store.deleteFast(id: $0) }
+            store.deleteFast(at: offsets)
             markUpdated()
         }
     }
