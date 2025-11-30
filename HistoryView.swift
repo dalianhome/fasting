@@ -5,14 +5,35 @@ struct HistoryView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
+            List {
+                Section {
                     statsCard
-                    historySection
+                        .listRowInsets(EdgeInsets())
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
                 }
-                .padding()
-                .background(Color(.systemGroupedBackground))
+
+                Section("Past fasts") {
+                    if store.history.isEmpty {
+                        Text("No fasts recorded yet")
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.vertical, 12)
+                    } else {
+                        ForEach(store.history) { fast in
+                            historyRow(fast)
+                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                    Button(role: .destructive) {
+                                        store.deleteFast(fast)
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
+                        }
+                    }
+                }
             }
+            .listStyle(.insetGrouped)
             .navigationTitle("History")
         }
     }
@@ -30,25 +51,6 @@ struct HistoryView: View {
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color.white).shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 6))
-    }
-
-    private var historySection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Past fasts")
-                .font(.headline)
-            if store.history.isEmpty {
-                Text("No fasts recorded yet")
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding()
-                    .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.white))
-            } else {
-                ForEach(store.history) { fast in
-                    historyRow(fast)
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func statPill(title: String, value: String) -> some View {
