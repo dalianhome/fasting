@@ -36,6 +36,7 @@ struct HomeView: View {
             }
             .onReceive(timer) { _ in
                 now = Date()
+                store.completeFastIfNeeded(asOf: now)
                 if !store.isFasting {
                     timer.upstream.connect().cancel()
                 }

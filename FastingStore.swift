@@ -205,9 +205,9 @@ final class FastingStore: ObservableObject {
         saveToDefaults()
     }
 
-    func stopFast() {
+    func stopFast(at completionDate: Date = Date()) {
         guard isFasting, let plan = selectedPlan, let start = fastStartDate else { return }
-        let end = Date()
+        let end = completionDate
         let duration = end.timeIntervalSince(start) / 3600
         let success = duration >= Double(plan.fastingHours)
         let completed = CompletedFast(planName: plan.name, startDate: start, endDate: end, durationHours: duration, isSuccessful: success)
@@ -217,6 +217,13 @@ final class FastingStore: ObservableObject {
         fastEndDate = nil
         NotificationManager.shared.cancelNotifications()
         saveToDefaults()
+    }
+
+    func completeFastIfNeeded(asOf date: Date = Date()) {
+        guard isFasting, let end = fastEndDate else { return }
+        if date >= end {
+            stopFast(at: end)
+        }
     }
 
     func remainingTime(asOf date: Date = Date()) -> TimeInterval {
@@ -248,6 +255,7 @@ final class FastingStore: ObservableObject {
             dailyReminderEnabled = decoded.dailyReminderEnabled
             theme = decoded.theme ?? .neon
             lastSyncedAt = decoded.lastSyncedAt
+            completeFastIfNeeded(asOf: Date())
         } catch {
             print("Failed to load data: \(error)")
             setupDefaultPlans()
