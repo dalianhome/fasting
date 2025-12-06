@@ -3,6 +3,7 @@ import Combine
 
 struct HomeView: View {
     @EnvironmentObject var store: FastingStore
+    @EnvironmentObject var auth: AuthViewModel
     @State private var timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     @State private var showSettings = false
     @State private var now = Date()
@@ -296,6 +297,17 @@ struct HomeView: View {
                     Toggle("Auto start after eating window", isOn: $store.autoStartAfterEating)
                     Toggle("Daily reminder at 8PM", isOn: $store.dailyReminderEnabled)
                 }
+
+                if auth.isAuthenticated {
+                    Section(header: Text("Account")) {
+                        Button(role: .destructive) {
+                            auth.signOut()
+                            showSettings = false
+                        } label: {
+                            Text("Sign Out")
+                        }
+                    }
+                }
             }
             .navigationTitle("Settings")
             .toolbar {
@@ -325,4 +337,5 @@ struct HomeView: View {
 #Preview {
     HomeView()
         .environmentObject(FastingStore())
+        .environmentObject(AuthViewModel())
 }
