@@ -16,13 +16,47 @@ struct SupabaseSession: Decodable {
     }
 }
 
+enum SupabaseJSONValue: Decodable {
+    case string(String)
+    case number(Double)
+    case bool(Bool)
+    case object([String: SupabaseJSONValue])
+    case array([SupabaseJSONValue])
+    case null
+
+    var stringValue: String? {
+        if case let .string(value) = self { return value }
+        return nil
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+
+        if container.decodeNil() {
+            self = .null
+        } else if let stringValue = try? container.decode(String.self) {
+            self = .string(stringValue)
+        } else if let boolValue = try? container.decode(Bool.self) {
+            self = .bool(boolValue)
+        } else if let numberValue = try? container.decode(Double.self) {
+            self = .number(numberValue)
+        } else if let objectValue = try? container.decode([String: SupabaseJSONValue].self) {
+            self = .object(objectValue)
+        } else if let arrayValue = try? container.decode([SupabaseJSONValue].self) {
+            self = .array(arrayValue)
+        } else {
+            throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unsupported JSON value"))
+        }
+    }
+}
+
 struct SupabaseUser: Decodable {
     let id: String
     let email: String?
-    let userMetadata: [String: String]?
+    let userMetadata: [String: SupabaseJSONValue]?
 
     var displayName: String? {
-        userMetadata?["full_name"] ?? userMetadata?["name"] ?? userMetadata?["username"]
+        userMetadata?["full_name"]?.stringValue ?? userMetadata?["name"]?.stringValue ?? userMetadata?["username"]?.stringValue
     }
 
     private enum CodingKeys: String, CodingKey {
