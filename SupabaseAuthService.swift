@@ -19,6 +19,17 @@ struct SupabaseSession: Decodable {
 struct SupabaseUser: Decodable {
     let id: String
     let email: String?
+    let userMetadata: [String: String]?
+
+    var displayName: String? {
+        userMetadata?["full_name"] ?? userMetadata?["name"] ?? userMetadata?["username"]
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case email
+        case userMetadata = "user_metadata"
+    }
 }
 
 struct SupabaseErrorResponse: Decodable {

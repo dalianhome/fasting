@@ -65,10 +65,16 @@ struct HomeView: View {
                 Text("Welcome")
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.7))
-                Text(auth.userEmail ?? "Signed in user")
+                Text(auth.userDisplayName ?? auth.userEmail ?? "Signed in user")
                     .font(.headline)
                     .foregroundStyle(.white)
                     .lineLimit(1)
+                if let email = auth.userEmail, auth.userDisplayName != email {
+                    Text(email)
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.7))
+                        .lineLimit(1)
+                }
             }
 
             Spacer()
@@ -333,13 +339,19 @@ struct HomeView: View {
 
                 if auth.isAuthenticated {
                     Section(header: Text("Account")) {
-                        if let email = auth.userEmail {
-                            HStack {
-                                Label("Signed in as", systemImage: "person.crop.circle")
+                        if let primaryLabel = auth.userDisplayName ?? auth.userEmail {
+                            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                                Label("Signed in", systemImage: "person.crop.circle")
                                 Spacer()
-                                Text(email)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
+                                VStack(alignment: .trailing, spacing: 2) {
+                                    Text(primaryLabel)
+                                        .font(.subheadline.weight(.semibold))
+                                    if let email = auth.userEmail, auth.userDisplayName != email {
+                                        Text(email)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
                             }
                         }
                         Button(role: .destructive) {
