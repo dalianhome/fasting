@@ -1,0 +1,133 @@
+import Foundation
+
+struct SupabaseSession: Decodable {
+    let accessToken: String
+    let refreshToken: String
+    let expiresIn: Int
+    let tokenType: String
+    let user: SupabaseUser
+
+    private enum CodingKeys: String, CodingKey {
+        case accessToken = "access_token"
+        case refreshToken = "refresh_token"
+        case expiresIn = "expires_in"
+        case tokenType = "token_type"
+        case user
+    }
+}
+
+enum SupabaseJSONValue: Decodable {
+    case string(String)
+    case number(Double)
+    case bool(Bool)
+    case object([String: SupabaseJSONValue])
+    case array([SupabaseJSONValue])
+    case null
+
+    var stringValue: String? {
+        if case let .string(value) = self { return value }
+        return nil
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+
+        if container.decodeNil() {
+            self = .null
+        } else if let stringValue = try? container.decode(String.self) {
+            self = .string(stringValue)
+        } else if let boolValue = try? container.decode(Bool.self) {
+            self = .bool(boolValue)
+        } else if let numberValue = try? container.decode(Double.self) {
+            self = .number(numberValue)
+        } else if let objectValue = try? container.decode([String: SupabaseJSONValue].self) {
+            self = .object(objectValue)
+        } else if let arrayValue = try? container.decode([SupabaseJSONValue].self) {
+            self = .array(arrayValue)
+        } else {
+            throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unsupported JSON value"))
+        }
+    }
+}
+
+struct SupabaseUser: Decodable {
+    let id: String
+    let email: String?
+    let userMetadata: [String: SupabaseJSONValue]?
+
+    var displayName: String? {
+        userMetadata?["full_name"]?.stringValue ?? userMetadata?["name"]?.stringValue ?? userMetadata?["username"]?.stringValue
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case email
+        case userMetadata = "user_metadata"
+    }
+}
+
+struct SupabaseErrorResponse: Decodable {
+    let error: String?
+    let errorDescription: String?
+    let message: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case error
+        case errorDescription = "error_description"
+        case message
+    }
+}
+
+enum SupabaseAuthError: LocalizedError {
+    case invalidURL
+    case requestFailed(String)
+    case decodingFailed
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidURL:
+            return "Unable to build Supabase authentication endpoint."
+        case .requestFailed(let message):
+            return message
+        case .decodingFailed:
+            return "Unexpected response from Supabase."
+        }
+    }
+}
+
+final class SupabaseAuthService {
+    func login(email: String, password: String) async throws -> SupabaseSession {
+        guard let url = URL(string: "\(SupabaseConfig.url)/auth/v1/token?grant_type=password") else {
+            throw SupabaseAuthError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.addValue("application/json", forHTTPHeaderField: "Accept")
+        request.addValue(SupabaseConfig.anonKey, forHTTPHeaderField: "apikey")
+        request.addValue("Bearer \(SupabaseConfig.anonKey)", forHTTPHeaderField: "Authorization")
+
+        let payload = ["email": email, "password": password]
+        request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw SupabaseAuthError.requestFailed("No response from Supabase.")
+        }
+
+        guard 200..<300 ~= httpResponse.statusCode else {
+            if let supabaseError = try? JSONDecoder().decode(SupabaseErrorResponse.self, from: data) {
+                let message = supabaseError.errorDescription ?? supabaseError.message ?? supabaseError.error ?? "Login failed."
+                throw SupabaseAuthError.requestFailed(message)
+            }
+            throw SupabaseAuthError.requestFailed("Login failed with status \(httpResponse.statusCode).")
+        }
+
+        do {
+            return try JSONDecoder().decode(SupabaseSession.self, from: data)
+        } catch {
+            throw SupabaseAuthError.decodingFailed
+        }
+    }
+}

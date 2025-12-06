@@ -157,6 +157,15 @@ enum AppTheme: String, CaseIterable, Identifiable, Codable {
     }
 }
 
+struct WeeklyStats {
+    let windowLabel: String
+    let totalFasts: Int
+    let successfulFasts: Int
+    let successRate: Double
+    let averageDurationHours: Double
+    let longestFastHours: Double
+}
+
 @MainActor
 final class FastingStore: ObservableObject {
     @Published var availablePlans: [FastingPlan] = []
@@ -203,9 +212,9 @@ final class FastingStore: ObservableObject {
         saveToDefaults()
     }
 
-    func stopFast() {
+    func stopFast(at completionDate: Date = Date()) {
         guard isFasting, let plan = selectedPlan, let start = fastStartDate else { return }
-        let end = Date()
+        let end = completionDate
         let duration = end.timeIntervalSince(start) / 3600
         let success = duration >= Double(plan.fastingHours)
         let completed = CompletedFast(planName: plan.name, startDate: start, endDate: end, durationHours: duration, isSuccessful: success)
@@ -215,6 +224,13 @@ final class FastingStore: ObservableObject {
         fastEndDate = nil
         NotificationManager.shared.cancelNotifications()
         saveToDefaults()
+    }
+
+    func completeFastIfNeeded(asOf date: Date = Date()) {
+        guard isFasting, let end = fastEndDate else { return }
+        if date >= end {
+            stopFast(at: end)
+        }
     }
 
     func remainingTime(asOf date: Date = Date()) -> TimeInterval {
@@ -245,6 +261,7 @@ final class FastingStore: ObservableObject {
             autoStartAfterEating = decoded.autoStartAfterEating
             dailyReminderEnabled = decoded.dailyReminderEnabled
             theme = decoded.theme ?? .neon
+            completeFastIfNeeded(asOf: Date())
         } catch {
             print("Failed to load data: \(error)")
             setupDefaultPlans()
@@ -313,6 +330,44 @@ final class FastingStore: ObservableObject {
 
     func totalFasts() -> Int {
         history.count
+    }
+
+    func currentStreakMilestones() -> (achieved: Int?, next: Int?) {
+        let thresholds = [3, 7, 14, 30]
+        let streak = currentStreak()
+
+        let achieved = thresholds.last(where: { streak >= $0 })
+        let next = thresholds.first(where: { streak < $0 })
+
+        return (achieved, next)
+    }
+
+    func weeklyStats(endingAt date: Date = Date()) -> WeeklyStats {
+        let calendar = Calendar.current
+        guard let startOfWindow = calendar.date(byAdding: .day, value: -6, to: calendar.startOfDay(for: date)) else {
+            return WeeklyStats(windowLabel: "Last 7 days", totalFasts: 0, successfulFasts: 0, successRate: 0, averageDurationHours: 0, longestFastHours: 0)
+        }
+
+        let windowHistory = history.filter { $0.endDate >= startOfWindow && $0.endDate <= date }
+
+        guard !windowHistory.isEmpty else {
+            return WeeklyStats(windowLabel: "Last 7 days", totalFasts: 0, successfulFasts: 0, successRate: 0, averageDurationHours: 0, longestFastHours: 0)
+        }
+
+        let successful = windowHistory.filter { $0.isSuccessful }
+        let durations = windowHistory.map { $0.durationHours }
+        let averageDuration = durations.reduce(0, +) / Double(windowHistory.count)
+        let longest = durations.max() ?? 0
+        let rate = Double(successful.count) / Double(windowHistory.count)
+
+        return WeeklyStats(
+            windowLabel: "Last 7 days",
+            totalFasts: windowHistory.count,
+            successfulFasts: successful.count,
+            successRate: rate,
+            averageDurationHours: averageDuration,
+            longestFastHours: longest
+        )
     }
 
     func deleteFast(_ fast: CompletedFast) {
