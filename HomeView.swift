@@ -7,6 +7,8 @@ struct HomeView: View {
     @State private var showSettings = false
     @State private var now = Date()
 
+    private var weeklySummary: WeeklyStats { store.weeklyStats(endingAt: now) }
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -17,6 +19,7 @@ struct HomeView: View {
                     VStack(spacing: 24) {
                         header
                         highlightCard
+                        weeklyInsights
                         timerCard
                         actionButtons
                     }
@@ -98,6 +101,17 @@ struct HomeView: View {
                 Text("\(store.currentStreak())-day streak • \(store.totalSuccessfulFasts()) goals met")
                     .font(.subheadline)
                     .foregroundStyle(.white.opacity(0.7))
+                let milestones = store.currentStreakMilestones()
+                if let achieved = milestones.achieved {
+                    Label("\(achieved)-day streak milestone unlocked!", systemImage: "flame.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(store.theme.actionTint)
+                }
+                if let next = milestones.next {
+                    Text("Next milestone: \(next)-day streak")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.65))
+                }
             }
             Spacer()
             Image(systemName: "figure.walk.circle.fill")
@@ -153,6 +167,57 @@ struct HomeView: View {
                         .stroke(store.theme.surfaceStroke)
                 )
                 .shadow(color: Color.purple.opacity(0.4), radius: 20, x: 0, y: 14)
+        )
+    }
+
+    private var weeklyInsights: some View {
+        let stats = weeklySummary
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("\(stats.windowLabel) insights")
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                    Text("\(stats.successfulFasts)/\(stats.totalFasts) successes • \(Int(stats.successRate * 100))% success rate")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.75))
+                }
+                Spacer()
+                Image(systemName: "chart.bar.fill")
+                    .font(.system(size: 28))
+                    .foregroundStyle(store.theme.actionTint)
+            }
+
+            HStack(spacing: 12) {
+                insightPill(title: "Avg Duration", value: String(format: "%.1f h", stats.averageDurationHours))
+                insightPill(title: "Longest", value: String(format: "%.1f h", stats.longestFastHours))
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(store.theme.surface)
+                .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(store.theme.surfaceStroke))
+                .shadow(color: Color.black.opacity(0.25), radius: 12, x: 0, y: 8)
+        )
+    }
+
+    private func insightPill(title: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.7))
+            Text(value)
+                .font(.headline)
+                .foregroundStyle(.white)
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(store.theme.surface)
+                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(store.theme.surfaceStroke))
         )
     }
 
