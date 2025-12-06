@@ -18,6 +18,7 @@ struct HomeView: View {
 
                 ScrollView {
                     VStack(spacing: 24) {
+                        profileHeader
                         header
                         highlightCard
                         weeklyInsights
@@ -47,6 +48,38 @@ struct HomeView: View {
                 }
             }
         }
+    }
+
+    private var profileHeader: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(store.theme.surface)
+                    .frame(width: 48, height: 48)
+                Image(systemName: "person.circle.fill")
+                    .font(.system(size: 30))
+                    .foregroundStyle(store.theme.actionTint)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Welcome")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.7))
+                Text(auth.userEmail ?? "Signed in user")
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(store.theme.cardGradient)
+                .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.white.opacity(0.12)))
+                .shadow(color: Color.cyan.opacity(0.25), radius: 12, x: 0, y: 8)
+        )
     }
 
     private var header: some View {
@@ -300,6 +333,15 @@ struct HomeView: View {
 
                 if auth.isAuthenticated {
                     Section(header: Text("Account")) {
+                        if let email = auth.userEmail {
+                            HStack {
+                                Label("Signed in as", systemImage: "person.crop.circle")
+                                Spacer()
+                                Text(email)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
                         Button(role: .destructive) {
                             auth.signOut()
                             showSettings = false
