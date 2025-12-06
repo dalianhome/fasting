@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import Combine
 
 @MainActor
 final class AuthViewModel: ObservableObject {
@@ -8,13 +9,17 @@ final class AuthViewModel: ObservableObject {
     @Published var isAuthenticated = false
     @Published var isLoading = false
     @Published var errorMessage: String?
+    @Published private(set) var storedAccessToken: String = ""
+    @Published private(set) var storedRefreshToken: String = ""
 
-    @AppStorage("supabaseAccessToken") private var storedAccessToken: String = ""
-    @AppStorage("supabaseRefreshToken") private var storedRefreshToken: String = ""
+    private let accessTokenKey = "supabaseAccessToken"
+    private let refreshTokenKey = "supabaseRefreshToken"
 
     private let service = SupabaseAuthService()
 
     init() {
+        storedAccessToken = UserDefaults.standard.string(forKey: accessTokenKey) ?? ""
+        storedRefreshToken = UserDefaults.standard.string(forKey: refreshTokenKey) ?? ""
         isAuthenticated = !storedAccessToken.isEmpty
     }
 
@@ -30,6 +35,8 @@ final class AuthViewModel: ObservableObject {
             let session = try await service.login(email: email, password: password)
             storedAccessToken = session.accessToken
             storedRefreshToken = session.refreshToken
+            UserDefaults.standard.set(session.accessToken, forKey: accessTokenKey)
+            UserDefaults.standard.set(session.refreshToken, forKey: refreshTokenKey)
             isAuthenticated = true
         } catch {
             isAuthenticated = false
@@ -41,6 +48,8 @@ final class AuthViewModel: ObservableObject {
     func signOut() {
         storedAccessToken = ""
         storedRefreshToken = ""
+        UserDefaults.standard.removeObject(forKey: accessTokenKey)
+        UserDefaults.standard.removeObject(forKey: refreshTokenKey)
         isAuthenticated = false
         email = ""
         password = ""
