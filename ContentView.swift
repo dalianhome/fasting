@@ -31,15 +31,20 @@ struct ContentView: View {
         .onChange(of: auth.userEmail) { _ in
             syncActiveUser()
         }
+        .onChange(of: auth.storedAccessToken) { _ in
+            syncActiveUser()
+        }
         .onChange(of: auth.isAuthenticated) { isAuthenticated in
             if !isAuthenticated {
                 store.setActiveUser(email: nil)
+                store.configureRemoteSession(userId: nil, accessToken: nil)
             }
         }
     }
 
     private func syncActiveUser() {
         store.setActiveUser(email: auth.userEmail)
+        store.configureRemoteSession(userId: auth.userId, accessToken: auth.storedAccessToken)
     }
 }
 

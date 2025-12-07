@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import SwiftUI
+import os.log
 
 enum AppTheme: String, CaseIterable, Identifiable, Codable {
     case neon
@@ -188,7 +189,11 @@ final class FastingStore: ObservableObject {
     @Published var lastSyncedAt: Date?
 
     private let defaultsKeyBase = "FastingStoreData"
+    private let syncService = FastingSyncService()
     private var activeUserEmail: String?
+    private var accessToken: String?
+    private var userId: String?
+    private var syncTask: Task<Void, Never>?
 
     private struct PersistedData: Codable {
         var availablePlans: [FastingPlan]
@@ -280,7 +285,7 @@ final class FastingStore: ObservableObject {
         }
     }
 
-    func saveToDefaults() {
+    func saveToDefaults(skipCloudSync: Bool = false) {
         do {
             let syncTime = Date()
             lastSyncedAt = syncTime
@@ -298,6 +303,9 @@ final class FastingStore: ObservableObject {
             )
             let encoded = try JSONEncoder().encode(data)
             UserDefaults.standard.set(encoded, forKey: storageKey)
+            if !skipCloudSync {
+                syncHistoryToCloud()
+            }
         } catch {
             print("Failed to save data: \(error)")
         }
@@ -466,6 +474,23 @@ final class FastingStore: ObservableObject {
         loadFromDefaults()
     }
 
+    func configureRemoteSession(userId: String?, accessToken: String?) {
+        let normalizedToken = accessToken?.isEmpty == true ? nil : accessToken
+        let normalizedUserId = userId?.isEmpty == true ? nil : userId
+
+        guard normalizedToken != self.accessToken || normalizedUserId != self.userId else { return }
+
+        self.accessToken = normalizedToken
+        self.userId = normalizedUserId
+
+        guard normalizedToken != nil, normalizedUserId != nil else {
+            syncTask?.cancel()
+            return
+        }
+
+        syncHistoryFromCloud()
+    }
+
     private func handleDailyReminderChange() {
         if dailyReminderEnabled {
             NotificationManager.shared.scheduleDailyReminder(hour: 20, minute: 0)
@@ -495,5 +520,57 @@ final class FastingStore: ObservableObject {
     private func defaultsKey(for email: String?) -> String {
         guard let email, !email.isEmpty else { return defaultsKeyBase }
         return "\(defaultsKeyBase)_\(email)"
+    }
+
+    private func syncHistoryFromCloud() {
+        guard let accessToken = accessToken, let userId = userId else { return }
+
+        syncTask?.cancel()
+        syncTask = Task { [weak self] in
+            do {
+                let remoteHistory = try await syncService.fetchHistory(accessToken: accessToken, userId: userId)
+                await MainActor.run {
+                    guard let self else { return }
+                    let merged = mergeHistory(local: self.history, remote: remoteHistory)
+                    if merged != self.history {
+                        self.history = merged
+                        self.saveToDefaults(skipCloudSync: true)
+                    }
+                }
+            } catch {
+                os_log("Failed to pull Supabase history: %{public}@", type: .error, error.localizedDescription)
+            }
+        }
+    }
+
+    private func syncHistoryToCloud() {
+        guard let accessToken = accessToken, let userId = userId else { return }
+
+        let historyToSync = history
+        Task { [weak self] in
+            do {
+                try await syncService.upsertHistory(accessToken: accessToken, userId: userId, fasts: historyToSync)
+                await MainActor.run {
+                    self?.lastSyncedAt = Date()
+                    self?.saveToDefaults(skipCloudSync: true)
+                }
+            } catch {
+                os_log("Failed to push Supabase history: %{public}@", type: .error, error.localizedDescription)
+            }
+        }
+    }
+
+    private func mergeHistory(local: [CompletedFast], remote: [CompletedFast]) -> [CompletedFast] {
+        var merged: [UUID: CompletedFast] = [:]
+
+        for fast in local {
+            merged[fast.id] = fast
+        }
+
+        for fast in remote {
+            merged[fast.id] = fast
+        }
+
+        return merged.values.sorted(by: { $0.endDate > $1.endDate })
     }
 }

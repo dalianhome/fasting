@@ -18,7 +18,7 @@ If changes are not showing up on device or simulator, try the following steps:
 
 ## Syncing fasting data across devices with Supabase
 
-The app currently stores history, active fasts, and settings in local `UserDefaults`, so each device keeps its own copy. To see the same data after signing in on any phone or web client, add a Supabase-backed sync layer:
+The app now pushes and pulls your fasting history to Supabase as soon as you sign in. Make sure your project has the matching tables and policies so each login sees the same data:
 
 1. **Create tables** (SQL in the Supabase SQL editor):
    ```sql
@@ -55,14 +55,14 @@ The app currently stores history, active fasts, and settings in local `UserDefau
      for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
    ```
 
-3. **Add Supabase client code** in the app:
-   - When a user signs in, fetch `profiles` and `fasts` for `auth.uid()` and replace the locally loaded `FastingStore` state.
-   - When starting/stopping/deleting fasts or changing settings, write to Supabase (insert/update) and update local cache so the UI stays instant.
-   - Store `last_synced_at` locally to skip redundant downloads and use it to drive incremental sync if desired.
+3. **Hook up the client (already wired in code):**
+   - Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in `SupabaseConfig.swift`.
+   - On login, the app downloads `fasts` for the authenticated user and merges them with any local entries to avoid duplicates.
+   - Every time a fast starts/stops or history changes, the app upserts to `fasts` using the current access token so another device sees the updates on next login.
 
 4. **Handle offline support** by queueing pending writes while offline and replaying them once a Supabase call succeeds. Until then, keep saving to `UserDefaults` so nothing is lost.
 
-5. **Migrate existing local data** by uploading the current `history`, active fast state, and settings the next time the user signs in, then marking them as synced.
+5. **Migrate existing local data** by letting the first signed-in session upload the current `history`; the merge logic keeps the latest entries from either device by ID.
 
 6. **Reuse the existing Supabase keys** in `SupabaseConfig.swift` for the client. Use the anon key in the app; reserve the service role key for secure backend utilities (never ship it in clients).
 
