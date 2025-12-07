@@ -80,7 +80,9 @@ final class FastingSyncService {
         }
 
         do {
-            let records = try JSONDecoder().decode([SupabaseFastRecord].self, from: data)
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            let records = try decoder.decode([SupabaseFastRecord].self, from: data)
             return records.map { $0.asCompletedFast() }
         } catch {
             throw FastingSyncError.decodingFailed
@@ -101,7 +103,9 @@ final class FastingSyncService {
         request.addValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
         request.addValue("resolution=merge-duplicates,return=minimal", forHTTPHeaderField: "Prefer")
-        request.httpBody = try JSONEncoder().encode(payload)
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        request.httpBody = try encoder.encode(payload)
 
         let (_, response) = try await URLSession.shared.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
