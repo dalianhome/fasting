@@ -187,7 +187,8 @@ final class FastingStore: ObservableObject {
     @Published var theme: AppTheme = .neon
     @Published var lastSyncedAt: Date?
 
-    private let defaultsKey = "FastingStoreData"
+    private let defaultsKeyBase = "FastingStoreData"
+    private var activeUserEmail: String?
 
     private struct PersistedData: Codable {
         var availablePlans: [FastingPlan]
@@ -254,7 +255,9 @@ final class FastingStore: ObservableObject {
     }
 
     func loadFromDefaults() {
-        guard let data = UserDefaults.standard.data(forKey: defaultsKey) else {
+        resetStateForFreshUser()
+
+        guard let data = UserDefaults.standard.data(forKey: storageKey) else {
             setupDefaultPlans()
             return
         }
@@ -294,7 +297,7 @@ final class FastingStore: ObservableObject {
                 lastSyncedAt: syncTime
             )
             let encoded = try JSONEncoder().encode(data)
-            UserDefaults.standard.set(encoded, forKey: defaultsKey)
+            UserDefaults.standard.set(encoded, forKey: storageKey)
         } catch {
             print("Failed to save data: \(error)")
         }
@@ -456,6 +459,13 @@ final class FastingStore: ObservableObject {
         lastSyncedAt = Date()
     }
 
+    func setActiveUser(email: String?) {
+        let normalized = email?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard normalized != activeUserEmail else { return }
+        activeUserEmail = normalized
+        loadFromDefaults()
+    }
+
     private func handleDailyReminderChange() {
         if dailyReminderEnabled {
             NotificationManager.shared.scheduleDailyReminder(hour: 20, minute: 0)
@@ -463,5 +473,27 @@ final class FastingStore: ObservableObject {
             NotificationManager.shared.cancelDailyReminder()
         }
         saveToDefaults()
+    }
+
+    private func resetStateForFreshUser() {
+        availablePlans = []
+        selectedPlan = nil
+        isFasting = false
+        fastStartDate = nil
+        fastEndDate = nil
+        history = []
+        autoStartAfterEating = false
+        dailyReminderEnabled = false
+        theme = .neon
+        lastSyncedAt = nil
+    }
+
+    private var storageKey: String {
+        defaultsKey(for: activeUserEmail)
+    }
+
+    private func defaultsKey(for email: String?) -> String {
+        guard let email, !email.isEmpty else { return defaultsKeyBase }
+        return "\(defaultsKeyBase)_\(email)"
     }
 }

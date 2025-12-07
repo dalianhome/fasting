@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject var auth: AuthViewModel
+    @EnvironmentObject var store: FastingStore
 
     var body: some View {
         Group {
@@ -26,6 +27,19 @@ struct ContentView: View {
                 LoginView()
             }
         }
+        .onAppear(perform: syncActiveUser)
+        .onChange(of: auth.userEmail) { _ in
+            syncActiveUser()
+        }
+        .onChange(of: auth.isAuthenticated) { isAuthenticated in
+            if !isAuthenticated {
+                store.setActiveUser(email: nil)
+            }
+        }
+    }
+
+    private func syncActiveUser() {
+        store.setActiveUser(email: auth.userEmail)
     }
 }
 
