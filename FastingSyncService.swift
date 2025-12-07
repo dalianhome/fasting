@@ -58,7 +58,7 @@ struct SupabaseFastRecord: Codable {
     }
 }
 
-final class FastingSyncService {
+struct FastingSyncService: Sendable {
     func fetchHistory(accessToken: String, userId: String) async throws -> [CompletedFast] {
         guard let url = URL(string: "\(SupabaseConfig.url)/rest/v1/fasts?user_id=eq.\(userId)&order=end_date.desc") else {
             throw FastingSyncError.invalidURL

@@ -526,16 +526,16 @@ final class FastingStore: ObservableObject {
         guard let accessToken = accessToken, let userId = userId else { return }
 
         syncTask?.cancel()
-        syncTask = Task { [weak self] in
+        syncTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+
             do {
                 let remoteHistory = try await syncService.fetchHistory(accessToken: accessToken, userId: userId)
-                await MainActor.run {
-                    guard let self else { return }
-                    let merged = mergeHistory(local: self.history, remote: remoteHistory)
-                    if merged != self.history {
-                        self.history = merged
-                        self.saveToDefaults(skipCloudSync: true)
-                    }
+                let merged = mergeHistory(local: history, remote: remoteHistory)
+
+                if merged != history {
+                    history = merged
+                    saveToDefaults(skipCloudSync: true)
                 }
             } catch {
                 os_log("Failed to pull Supabase history: %{public}@", type: .error, error.localizedDescription)
@@ -547,13 +547,13 @@ final class FastingStore: ObservableObject {
         guard let accessToken = accessToken, let userId = userId else { return }
 
         let historyToSync = history
-        Task { [weak self] in
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+
             do {
                 try await syncService.upsertHistory(accessToken: accessToken, userId: userId, fasts: historyToSync)
-                await MainActor.run {
-                    self?.lastSyncedAt = Date()
-                    self?.saveToDefaults(skipCloudSync: true)
-                }
+                lastSyncedAt = Date()
+                saveToDefaults(skipCloudSync: true)
             } catch {
                 os_log("Failed to push Supabase history: %{public}@", type: .error, error.localizedDescription)
             }
