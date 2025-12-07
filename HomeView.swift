@@ -9,6 +9,7 @@ struct HomeView: View {
     @State private var now = Date()
 
     private var weeklySummary: WeeklyStats { store.weeklyStats(endingAt: now) }
+    private var windowSuggestion: WindowSuggestion? { store.preferredWindow(limit: 20) }
 
     var body: some View {
         NavigationStack {
@@ -22,6 +23,7 @@ struct HomeView: View {
                         header
                         highlightCard
                         weeklyInsights
+                        smartSchedule
                         timerCard
                         actionButtons
                     }
@@ -85,6 +87,50 @@ struct HomeView: View {
                 .fill(store.theme.cardGradient)
                 .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.white.opacity(0.12)))
                 .shadow(color: Color.cyan.opacity(0.25), radius: 12, x: 0, y: 8)
+        )
+    }
+
+    private var smartSchedule: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Smart schedule")
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                    Text("Suggested eating/fasting windows from your recent wins")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.75))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer()
+                Image(systemName: "lightbulb.max")
+                    .font(.system(size: 26, weight: .bold))
+                    .foregroundStyle(store.theme.actionTint)
+            }
+
+            if let suggestion = windowSuggestion {
+                let start = timeOfDayString(minutes: suggestion.startMinutes)
+                let end = timeOfDayString(minutes: suggestion.endMinutes)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Try starting your fast around **\(start)** and plan to eat near **\(end)**.")
+                        .foregroundStyle(.white)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text("Based on your last \(suggestion.sampleSize) goal-reaching fasts.")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.7))
+                }
+            } else {
+                Text("Complete a few fasts to see personalized timing suggestions.")
+                    .foregroundStyle(.white.opacity(0.75))
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(store.theme.surface)
+                .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(store.theme.surfaceStroke))
+                .shadow(color: Color.black.opacity(0.25), radius: 12, x: 0, y: 8)
         )
     }
 
@@ -385,6 +431,13 @@ struct HomeView: View {
         let formatter = DateFormatter()
         formatter.timeStyle = .short
         return formatter.string(from: date)
+    }
+
+    private func timeOfDayString(minutes: Int) -> String {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: now)
+        let date = calendar.date(byAdding: .minute, value: minutes, to: today) ?? today
+        return timeString(from: date)
     }
 }
 

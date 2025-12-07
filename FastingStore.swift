@@ -166,6 +166,12 @@ struct WeeklyStats {
     let longestFastHours: Double
 }
 
+struct WindowSuggestion {
+    let startMinutes: Int
+    let endMinutes: Int
+    let sampleSize: Int
+}
+
 @MainActor
 final class FastingStore: ObservableObject {
     @Published var availablePlans: [FastingPlan] = []
@@ -375,6 +381,21 @@ final class FastingStore: ObservableObject {
         )
     }
 
+    func preferredWindow(limit: Int = 14) -> WindowSuggestion? {
+        let successful = history.filter { $0.isSuccessful }
+        guard !successful.isEmpty else { return nil }
+
+        let recent = Array(successful.prefix(limit))
+        let starts = recent.map { $0.startDate }
+        let ends = recent.map { $0.endDate }
+
+        guard let averageStart = averageTimeMinutes(for: starts), let averageEnd = averageTimeMinutes(for: ends) else {
+            return nil
+        }
+
+        return WindowSuggestion(startMinutes: averageStart, endMinutes: averageEnd, sampleSize: recent.count)
+    }
+
     func deleteFast(_ fast: CompletedFast) {
         guard let index = history.firstIndex(where: { $0.id == fast.id }) else { return }
         history.remove(at: index)
@@ -405,6 +426,19 @@ final class FastingStore: ObservableObject {
         history.removeAll { idSet.contains($0.id) }
         guard history.count != originalCount else { return }
         saveToDefaults()
+    }
+
+    private func averageTimeMinutes(for dates: [Date]) -> Int? {
+        guard !dates.isEmpty else { return nil }
+        let calendar = Calendar.current
+        let minutes = dates.compactMap { date -> Int? in
+            let components = calendar.dateComponents([.hour, .minute], from: date)
+            guard let hour = components.hour, let minute = components.minute else { return nil }
+            return hour * 60 + minute
+        }
+        guard !minutes.isEmpty else { return nil }
+        let total = minutes.reduce(0, +)
+        return Int(round(Double(total) / Double(minutes.count)))
     }
 
     func setTheme(_ theme: AppTheme) {
