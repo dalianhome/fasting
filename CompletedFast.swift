@@ -1,6 +1,6 @@
 import Foundation
 
-struct CompletedFast: Identifiable, Codable {
+struct CompletedFast: Identifiable, Codable, Sendable {
     let id: UUID
     let planName: String
     let startDate: Date
