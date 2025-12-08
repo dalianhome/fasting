@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import SwiftUI
+import os.log
 
 enum AppTheme: String, CaseIterable, Identifiable, Codable {
     case neon
@@ -157,6 +158,21 @@ enum AppTheme: String, CaseIterable, Identifiable, Codable {
     }
 }
 
+struct WeeklyStats {
+    let windowLabel: String
+    let totalFasts: Int
+    let successfulFasts: Int
+    let successRate: Double
+    let averageDurationHours: Double
+    let longestFastHours: Double
+}
+
+struct WindowSuggestion {
+    let startMinutes: Int
+    let endMinutes: Int
+    let sampleSize: Int
+}
+
 @MainActor
 final class FastingStore: ObservableObject {
     @Published var availablePlans: [FastingPlan] = []
@@ -172,7 +188,12 @@ final class FastingStore: ObservableObject {
     @Published var theme: AppTheme = .neon
     @Published var lastSyncedAt: Date?
 
-    private let defaultsKey = "FastingStoreData"
+    private let defaultsKeyBase = "FastingStoreData"
+    private let syncService = FastingSyncService()
+    private var activeUserEmail: String?
+    private var accessToken: String?
+    private var userId: String?
+    private var syncTask: Task<Void, Never>?
 
     private struct PersistedData: Codable {
         var availablePlans: [FastingPlan]
@@ -205,9 +226,9 @@ final class FastingStore: ObservableObject {
         saveToDefaults()
     }
 
-    func stopFast() {
+    func stopFast(at completionDate: Date = Date()) {
         guard isFasting, let plan = selectedPlan, let start = fastStartDate else { return }
-        let end = Date()
+        let end = completionDate
         let duration = end.timeIntervalSince(start) / 3600
         let success = duration >= Double(plan.fastingHours)
         let completed = CompletedFast(planName: plan.name, startDate: start, endDate: end, durationHours: duration, isSuccessful: success)
@@ -217,6 +238,13 @@ final class FastingStore: ObservableObject {
         fastEndDate = nil
         NotificationManager.shared.cancelNotifications()
         saveToDefaults()
+    }
+
+    func completeFastIfNeeded(asOf date: Date = Date()) {
+        guard isFasting, let end = fastEndDate else { return }
+        if date >= end {
+            stopFast(at: end)
+        }
     }
 
     func remainingTime(asOf date: Date = Date()) -> TimeInterval {
@@ -232,7 +260,9 @@ final class FastingStore: ObservableObject {
     }
 
     func loadFromDefaults() {
-        guard let data = UserDefaults.standard.data(forKey: defaultsKey) else {
+        resetStateForFreshUser()
+
+        guard let data = UserDefaults.standard.data(forKey: storageKey) else {
             setupDefaultPlans()
             return
         }
@@ -248,13 +278,14 @@ final class FastingStore: ObservableObject {
             dailyReminderEnabled = decoded.dailyReminderEnabled
             theme = decoded.theme ?? .neon
             lastSyncedAt = decoded.lastSyncedAt
+            completeFastIfNeeded(asOf: Date())
         } catch {
             print("Failed to load data: \(error)")
             setupDefaultPlans()
         }
     }
 
-    func saveToDefaults() {
+    func saveToDefaults(skipCloudSync: Bool = false) {
         do {
             let syncTime = Date()
             lastSyncedAt = syncTime
@@ -271,7 +302,10 @@ final class FastingStore: ObservableObject {
                 lastSyncedAt: syncTime
             )
             let encoded = try JSONEncoder().encode(data)
-            UserDefaults.standard.set(encoded, forKey: defaultsKey)
+            UserDefaults.standard.set(encoded, forKey: storageKey)
+            if !skipCloudSync {
+                syncHistoryToCloud()
+            }
         } catch {
             print("Failed to save data: \(error)")
         }
@@ -320,6 +354,59 @@ final class FastingStore: ObservableObject {
         history.count
     }
 
+    func currentStreakMilestones() -> (achieved: Int?, next: Int?) {
+        let thresholds = [3, 7, 14, 30]
+        let streak = currentStreak()
+
+        let achieved = thresholds.last(where: { streak >= $0 })
+        let next = thresholds.first(where: { streak < $0 })
+
+        return (achieved, next)
+    }
+
+    func weeklyStats(endingAt date: Date = Date()) -> WeeklyStats {
+        let calendar = Calendar.current
+        guard let startOfWindow = calendar.date(byAdding: .day, value: -6, to: calendar.startOfDay(for: date)) else {
+            return WeeklyStats(windowLabel: "Last 7 days", totalFasts: 0, successfulFasts: 0, successRate: 0, averageDurationHours: 0, longestFastHours: 0)
+        }
+
+        let windowHistory = history.filter { $0.endDate >= startOfWindow && $0.endDate <= date }
+
+        guard !windowHistory.isEmpty else {
+            return WeeklyStats(windowLabel: "Last 7 days", totalFasts: 0, successfulFasts: 0, successRate: 0, averageDurationHours: 0, longestFastHours: 0)
+        }
+
+        let successful = windowHistory.filter { $0.isSuccessful }
+        let durations = windowHistory.map { $0.durationHours }
+        let averageDuration = durations.reduce(0, +) / Double(windowHistory.count)
+        let longest = durations.max() ?? 0
+        let rate = Double(successful.count) / Double(windowHistory.count)
+
+        return WeeklyStats(
+            windowLabel: "Last 7 days",
+            totalFasts: windowHistory.count,
+            successfulFasts: successful.count,
+            successRate: rate,
+            averageDurationHours: averageDuration,
+            longestFastHours: longest
+        )
+    }
+
+    func preferredWindow(limit: Int = 14) -> WindowSuggestion? {
+        let successful = history.filter { $0.isSuccessful }
+        guard !successful.isEmpty else { return nil }
+
+        let recent = Array(successful.prefix(limit))
+        let starts = recent.map { $0.startDate }
+        let ends = recent.map { $0.endDate }
+
+        guard let averageStart = averageTimeMinutes(for: starts), let averageEnd = averageTimeMinutes(for: ends) else {
+            return nil
+        }
+
+        return WindowSuggestion(startMinutes: averageStart, endMinutes: averageEnd, sampleSize: recent.count)
+    }
+
     func deleteFast(_ fast: CompletedFast) {
         guard let index = history.firstIndex(where: { $0.id == fast.id }) else { return }
         history.remove(at: index)
@@ -352,6 +439,19 @@ final class FastingStore: ObservableObject {
         saveToDefaults()
     }
 
+    private func averageTimeMinutes(for dates: [Date]) -> Int? {
+        guard !dates.isEmpty else { return nil }
+        let calendar = Calendar.current
+        let minutes = dates.compactMap { date -> Int? in
+            let components = calendar.dateComponents([.hour, .minute], from: date)
+            guard let hour = components.hour, let minute = components.minute else { return nil }
+            return hour * 60 + minute
+        }
+        guard !minutes.isEmpty else { return nil }
+        let total = minutes.reduce(0, +)
+        return Int(round(Double(total) / Double(minutes.count)))
+    }
+
     func setTheme(_ theme: AppTheme) {
         self.theme = theme
         saveToDefaults()
@@ -367,6 +467,30 @@ final class FastingStore: ObservableObject {
         lastSyncedAt = Date()
     }
 
+    func setActiveUser(email: String?) {
+        let normalized = email?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard normalized != activeUserEmail else { return }
+        activeUserEmail = normalized
+        loadFromDefaults()
+    }
+
+    func configureRemoteSession(userId: String?, accessToken: String?) {
+        let normalizedToken = accessToken?.isEmpty == true ? nil : accessToken
+        let normalizedUserId = userId?.isEmpty == true ? nil : userId
+
+        guard normalizedToken != self.accessToken || normalizedUserId != self.userId else { return }
+
+        self.accessToken = normalizedToken
+        self.userId = normalizedUserId
+
+        guard normalizedToken != nil, normalizedUserId != nil else {
+            syncTask?.cancel()
+            return
+        }
+
+        syncHistoryFromCloud()
+    }
+
     private func handleDailyReminderChange() {
         if dailyReminderEnabled {
             NotificationManager.shared.scheduleDailyReminder(hour: 20, minute: 0)
@@ -374,5 +498,79 @@ final class FastingStore: ObservableObject {
             NotificationManager.shared.cancelDailyReminder()
         }
         saveToDefaults()
+    }
+
+    private func resetStateForFreshUser() {
+        availablePlans = []
+        selectedPlan = nil
+        isFasting = false
+        fastStartDate = nil
+        fastEndDate = nil
+        history = []
+        autoStartAfterEating = false
+        dailyReminderEnabled = false
+        theme = .neon
+        lastSyncedAt = nil
+    }
+
+    private var storageKey: String {
+        defaultsKey(for: activeUserEmail)
+    }
+
+    private func defaultsKey(for email: String?) -> String {
+        guard let email, !email.isEmpty else { return defaultsKeyBase }
+        return "\(defaultsKeyBase)_\(email)"
+    }
+
+    private func syncHistoryFromCloud() {
+        guard let accessToken = accessToken, let userId = userId else { return }
+
+        syncTask?.cancel()
+        syncTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+
+            do {
+                let remoteHistory = try await syncService.fetchHistory(accessToken: accessToken, userId: userId)
+                let merged = mergeHistory(local: history, remote: remoteHistory)
+
+                if merged != history {
+                    history = merged
+                    saveToDefaults(skipCloudSync: true)
+                }
+            } catch {
+                os_log("Failed to pull Supabase history: %{public}@", type: .error, error.localizedDescription)
+            }
+        }
+    }
+
+    private func syncHistoryToCloud() {
+        guard let accessToken = accessToken, let userId = userId else { return }
+
+        let historyToSync = history
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+
+            do {
+                try await syncService.upsertHistory(accessToken: accessToken, userId: userId, fasts: historyToSync)
+                lastSyncedAt = Date()
+                saveToDefaults(skipCloudSync: true)
+            } catch {
+                os_log("Failed to push Supabase history: %{public}@", type: .error, error.localizedDescription)
+            }
+        }
+    }
+
+    private func mergeHistory(local: [CompletedFast], remote: [CompletedFast]) -> [CompletedFast] {
+        var merged: [UUID: CompletedFast] = [:]
+
+        for fast in local {
+            merged[fast.id] = fast
+        }
+
+        for fast in remote {
+            merged[fast.id] = fast
+        }
+
+        return merged.values.sorted(by: { $0.endDate > $1.endDate })
     }
 }

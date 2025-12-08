@@ -1,10 +1,15 @@
 import SwiftUI
+import Combine
 
 struct HomeView: View {
     @EnvironmentObject var store: FastingStore
+    @EnvironmentObject var auth: AuthViewModel
     @State private var timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     @State private var showSettings = false
     @State private var now = Date()
+
+    private var weeklySummary: WeeklyStats { store.weeklyStats(endingAt: now) }
+    private var windowSuggestion: WindowSuggestion? { store.preferredWindow(limit: 20) }
 
     var body: some View {
         NavigationStack {
@@ -14,8 +19,11 @@ struct HomeView: View {
 
                 ScrollView {
                     VStack(spacing: 24) {
+                        profileHeader
                         header
                         highlightCard
+                        weeklyInsights
+                        smartSchedule
                         timerCard
                         actionButtons
                     }
@@ -36,11 +44,94 @@ struct HomeView: View {
             }
             .onReceive(timer) { _ in
                 now = Date()
+                store.completeFastIfNeeded(asOf: now)
                 if !store.isFasting {
                     timer.upstream.connect().cancel()
                 }
             }
         }
+    }
+
+    private var profileHeader: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(store.theme.surface)
+                    .frame(width: 48, height: 48)
+                Image(systemName: "person.circle.fill")
+                    .font(.system(size: 30))
+                    .foregroundStyle(store.theme.actionTint)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Welcome")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.7))
+                Text(auth.userDisplayName ?? auth.userEmail ?? "Signed in user")
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                if let email = auth.userEmail, auth.userDisplayName != email {
+                    Text(email)
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.7))
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer()
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(store.theme.cardGradient)
+                .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.white.opacity(0.12)))
+                .shadow(color: Color.cyan.opacity(0.25), radius: 12, x: 0, y: 8)
+        )
+    }
+
+    private var smartSchedule: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Smart schedule")
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                    Text("Suggested eating/fasting windows from your recent wins")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.75))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer()
+                Image(systemName: "lightbulb.max")
+                    .font(.system(size: 26, weight: .bold))
+                    .foregroundStyle(store.theme.actionTint)
+            }
+
+            if let suggestion = windowSuggestion {
+                let start = timeOfDayString(minutes: suggestion.startMinutes)
+                let end = timeOfDayString(minutes: suggestion.endMinutes)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Try starting your fast around **\(start)** and plan to eat near **\(end)**.")
+                        .foregroundStyle(.white)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text("Based on your last \(suggestion.sampleSize) goal-reaching fasts.")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.7))
+                }
+            } else {
+                Text("Complete a few fasts to see personalized timing suggestions.")
+                    .foregroundStyle(.white.opacity(0.75))
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(store.theme.surface)
+                .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(store.theme.surfaceStroke))
+                .shadow(color: Color.black.opacity(0.25), radius: 12, x: 0, y: 8)
+        )
     }
 
     private var header: some View {
@@ -96,6 +187,17 @@ struct HomeView: View {
                 Text("\(store.currentStreak())-day streak • \(store.totalSuccessfulFasts()) goals met")
                     .font(.subheadline)
                     .foregroundStyle(.white.opacity(0.7))
+                let milestones = store.currentStreakMilestones()
+                if let achieved = milestones.achieved {
+                    Label("\(achieved)-day streak milestone unlocked!", systemImage: "flame.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(store.theme.actionTint)
+                }
+                if let next = milestones.next {
+                    Text("Next milestone: \(next)-day streak")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.65))
+                }
             }
             Spacer()
             Image(systemName: "figure.walk.circle.fill")
@@ -151,6 +253,57 @@ struct HomeView: View {
                         .stroke(store.theme.surfaceStroke)
                 )
                 .shadow(color: Color.purple.opacity(0.4), radius: 20, x: 0, y: 14)
+        )
+    }
+
+    private var weeklyInsights: some View {
+        let stats = weeklySummary
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("\(stats.windowLabel) insights")
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                    Text("\(stats.successfulFasts)/\(stats.totalFasts) successes • \(Int(stats.successRate * 100))% success rate")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.75))
+                }
+                Spacer()
+                Image(systemName: "chart.bar.fill")
+                    .font(.system(size: 28))
+                    .foregroundStyle(store.theme.actionTint)
+            }
+
+            HStack(spacing: 12) {
+                insightPill(title: "Avg Duration", value: String(format: "%.1f h", stats.averageDurationHours))
+                insightPill(title: "Longest", value: String(format: "%.1f h", stats.longestFastHours))
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(store.theme.surface)
+                .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(store.theme.surfaceStroke))
+                .shadow(color: Color.black.opacity(0.25), radius: 12, x: 0, y: 8)
+        )
+    }
+
+    private func insightPill(title: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.7))
+            Text(value)
+                .font(.headline)
+                .foregroundStyle(.white)
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(store.theme.surface)
+                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(store.theme.surfaceStroke))
         )
     }
 
@@ -229,6 +382,32 @@ struct HomeView: View {
                     Toggle("Auto start after eating window", isOn: $store.autoStartAfterEating)
                     Toggle("Daily reminder at 8PM", isOn: $store.dailyReminderEnabled)
                 }
+
+                if auth.isAuthenticated {
+                    Section(header: Text("Account")) {
+                        if let primaryLabel = auth.userDisplayName ?? auth.userEmail {
+                            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                                Label("Signed in", systemImage: "person.crop.circle")
+                                Spacer()
+                                VStack(alignment: .trailing, spacing: 2) {
+                                    Text(primaryLabel)
+                                        .font(.subheadline.weight(.semibold))
+                                    if let email = auth.userEmail, auth.userDisplayName != email {
+                                        Text(email)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                            }
+                        }
+                        Button(role: .destructive) {
+                            auth.signOut()
+                            showSettings = false
+                        } label: {
+                            Text("Sign Out")
+                        }
+                    }
+                }
             }
             .navigationTitle("Settings")
             .toolbar {
@@ -253,9 +432,17 @@ struct HomeView: View {
         formatter.timeStyle = .short
         return formatter.string(from: date)
     }
+
+    private func timeOfDayString(minutes: Int) -> String {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: now)
+        let date = calendar.date(byAdding: .minute, value: minutes, to: today) ?? today
+        return timeString(from: date)
+    }
 }
 
 #Preview {
     HomeView()
         .environmentObject(FastingStore())
+        .environmentObject(AuthViewModel())
 }

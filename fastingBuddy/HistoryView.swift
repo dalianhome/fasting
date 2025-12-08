@@ -101,6 +101,9 @@ struct HistoryView: View {
                 Text(fast.planName)
                     .font(.subheadline)
                     .foregroundStyle(.white.opacity(0.8))
+                Text(timeRangeString(from: fast.startDate, to: fast.endDate))
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.7))
             }
             Spacer()
             VStack(alignment: .trailing) {
@@ -160,6 +163,12 @@ struct HistoryView: View {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         return formatter.string(from: date)
+    }
+
+    private func timeRangeString(from start: Date, to end: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return "\(formatter.string(from: start)) – \(formatter.string(from: end))"
     }
 }
 
